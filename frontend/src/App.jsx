@@ -1,19 +1,26 @@
 import { useState, useEffect } from 'react';
+import Navbar from './components/Navbar';
+import MetricForm from './components/MetricForm';
+import RecommendationCard from './components/RecommendationCard';
+import ShapBreakdown from './components/ShapBreakdown';
+import WhatIfExplorer from './components/WhatIfExplorer';
 import './App.css';
 
-function App() {
+export default function App() {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Initial load: Fetch default recommendation from Flask API
   useEffect(() => {
+    setLoading(true);
     fetch('http://localhost:5000/api/recommendation')
       .then((res) => {
-        if (!res.ok) throw new Error('Could not connect to Flask API backend');
+        if (!res.ok) throw new Error('Cannot reach Flask backend (port 5000)');
         return res.json();
       })
-      .then((json) => {
-        setData(json);
+      .then((result) => {
+        setData(result);
         setLoading(false);
       })
       .catch((err) => {
@@ -22,73 +29,66 @@ function App() {
       });
   }, []);
 
+  // Form submission: POST updated metrics to Flask
+  const handleMetricSubmit = (metrics) => {
+    setLoading(true);
+    setError(null);
+    fetch('http://localhost:5000/api/recommendation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(metrics),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Prediction API call failed');
+        return res.json();
+      })
+      .then((result) => {
+        setData(result);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  };
+
   return (
-    <>
-      {/* Navigation Bar */}
-      <nav className="navbar">
-        <div className="nav-brand">
-          <span className="brand-badge">CSIT-26-S4-03</span>
-          <span className="brand-title">Healthy360</span>
-        </div>
-        <ul className="nav-links">
-          <li><a href="#home" className="active">Home</a></li>
-          <li><a href="#recommendations">Recommendations</a></li>
-          <li><a href="#what-if">What-If Explorer</a></li>
-          <li><a href="#about">About</a></li>
-        </ul>
-      </nav>
+    <div className="app-root">
+      <Navbar />
 
-      {/* Main Page Content */}
-      <main className="container">
-        {/* Hero Section */}
-        <section className="hero" id="home">
+      <main className="dashboard-container" id="dashboard">
+        <header className="page-header">
           <h1>Explainable AI Health Companion</h1>
-          <p>
-            A lifestyle recommendation system built on transparent reasoning, algorithmic fairness, and human-understandable guidance.
-          </p>
-        </section>
+          <p>Transparent, personalized lifestyle guidance grounded in verifiable biometric drivers.</p>
+        </header>
 
-        {/* Loading / Error States */}
-        {loading && <p className="status-msg">Loading daily guidance from backend...</p>}
         {error && (
-          <div className="error-msg">
-            <strong>Backend Connection Notice:</strong> {error}. Ensure your Flask app is running at <code>http://localhost:5000</code>.
+          <div className="alert-error">
+            <strong>Backend Connection Notice:</strong> {error}. Ensure <code>python app.py</code> is running in <code>backend/</code>.
           </div>
         )}
 
-        {/* Live Recommendation Output */}
-        {data && (
-          <>
-            <section className="recommendation-card" id="recommendations">
-              <div className="card-label">Today's Focus</div>
-              <h2 className="recommendation-title">{data.recommendation}</h2>
-              <p className="recommendation-text">
-                <strong>Why? </strong>
-                {data.explanation}
-              </p>
-            </section>
+        <div className="content-grid">
+          {/* Left Column: Input Form */}
+          <div className="grid-col">
+            <MetricForm onSubmit={handleMetricSubmit} loading={loading} />
+          </div>
 
-            <section className="factors-card">
-              <h3>Contributing Biometric Drivers (SHAP Attribution)</h3>
-              {data.shap_factors?.map((factor, index) => (
-                <div key={index} className="factor-item">
-                  <span>{factor.feature}</span>
-                  <span className={factor.impact > 0 ? 'impact-positive' : 'impact-negative'}>
-                    {factor.impact > 0 ? `+${factor.impact}%` : `${factor.impact}%`}
-                  </span>
-                </div>
-              ))}
-            </section>
-
-            <section className="what-if-card" id="what-if">
-              <strong>Actionable Recourse: </strong>
-              <span>{data.what_if}</span>
-            </section>
-          </>
-        )}
+          {/* Right Column: Recommendations & Explanations */}
+          <div className="grid-col">
+            {data && (
+              <>
+                <RecommendationCard
+                  recommendation={data.recommendation}
+                  explanation={data.explanation}
+                />
+                <ShapBreakdown factors={data.shap_factors} />
+                <WhatIfExplorer whatIf={data.what_if} />
+              </>
+            )}
+          </div>
+        </div>
       </main>
-    </>
+    </div>
   );
 }
-
-export default App;

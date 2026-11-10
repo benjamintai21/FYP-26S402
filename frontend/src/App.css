@@ -1,4 +1,3 @@
-/* --- Global Resets & Base Styles --- */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -6,43 +5,42 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: #f8fafc;
   color: #1e293b;
   line-height: 1.5;
 }
 
-/* --- Navigation Bar --- */
+/* Navbar */
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   background-color: #ffffff;
-  padding: 1rem 2rem;
+  padding: 1rem 2.5rem;
   border-bottom: 1px solid #e2e8f0;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 50;
 }
 
 .nav-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .brand-badge {
-  background-color: #e0f2fe;
+  background: #e0f2fe;
   color: #0369a1;
   font-size: 0.75rem;
   font-weight: 700;
   padding: 3px 8px;
-  border-radius: 9999px;
-  letter-spacing: 0.5px;
+  border-radius: 999px;
 }
 
 .brand-title {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: #0f172a;
 }
@@ -56,137 +54,221 @@ body {
 .nav-links a {
   text-decoration: none;
   color: #64748b;
-  font-weight: 500;
   font-size: 0.95rem;
-  transition: color 0.2s ease;
+  font-weight: 500;
 }
 
-.nav-links a:hover,
 .nav-links a.active {
   color: #2563eb;
+  font-weight: 600;
 }
 
-/* --- Page Layout Container --- */
-.container {
-  max-width: 900px;
-  margin: 2.5rem auto;
+/* Dashboard Container */
+.dashboard-container {
+  max-width: 1100px;
+  margin: 2rem auto;
   padding: 0 1.5rem;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  font-size: 1.85rem;
+  color: #0f172a;
+  margin-bottom: 0.25rem;
+}
+
+.page-header p {
+  color: #64748b;
+}
+
+/* 2-Column Responsive Layout */
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 1.75rem;
+}
+
+@media (max-width: 850px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.grid-col {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
-/* --- Hero Banner --- */
-.hero {
-  background-color: #ffffff;
+/* Base Card Style */
+.card {
+  background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.hero h1 {
-  font-size: 1.75rem;
+.card-header {
+  margin-bottom: 1.25rem;
+}
+
+.card-header h2, .card-header h3 {
+  font-size: 1.15rem;
   color: #0f172a;
-  margin-bottom: 0.5rem;
 }
 
-.hero p {
+.sub-text {
+  font-size: 0.85rem;
   color: #64748b;
-  font-size: 1rem;
-  max-width: 600px;
 }
 
-/* --- Recommendation Card --- */
-.recommendation-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-left: 4px solid #2563eb;
-  border-radius: 12px;
-  padding: 1.5rem 2rem;
+/* Metric Form */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.1rem;
 }
 
-.card-label {
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #64748b;
-  letter-spacing: 0.5px;
-  margin-bottom: 0.5rem;
-}
-
-.recommendation-title {
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #1d4ed8;
-  margin-bottom: 0.75rem;
-}
-
-.recommendation-text {
+.form-group label {
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
   color: #334155;
 }
 
-/* --- SHAP Factors Breakdown --- */
-.factors-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 1.5rem 2rem;
+.form-group input[type="range"] {
+  width: 100%;
+  accent-color: #2563eb;
 }
 
-.factors-card h3 {
-  font-size: 1.1rem;
-  color: #0f172a;
+.submit-btn {
+  width: 100%;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.submit-btn:hover {
+  background: #1d4ed8;
+}
+
+.submit-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Recommendation Card */
+.rec-card {
+  border-left: 5px solid #2563eb;
+}
+
+.badge {
+  background: #dbeafe;
+  color: #1e40af;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.rec-title {
+  font-size: 1.45rem;
+  color: #1d4ed8;
+  margin: 0.5rem 0;
+}
+
+.rec-explanation {
+  font-size: 0.95rem;
+  color: #334155;
   margin-bottom: 1rem;
 }
 
-.factor-item {
+.disclaimer-note {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.5rem;
+}
+
+/* SHAP Breakdown Bars */
+.factors-list {
   display: flex;
-  justify-content: space-between;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 0.95rem;
+  flex-direction: column;
+  gap: 0.9rem;
 }
 
-.factor-item:last-child {
-  border-bottom: none;
+.factor-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
 }
 
-.impact-positive {
-  color: #16a34a;
-  font-weight: 700;
+.factor-name {
+  width: 160px;
+  color: #334155;
 }
 
-.impact-negative {
-  color: #dc2626;
-  font-weight: 700;
+.bar-track {
+  flex: 1;
+  background: #f1f5f9;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
 }
 
-/* --- Recourse / What-If Note --- */
-.what-if-card {
-  background-color: #eff6ff;
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.fill-pos { background: #16a34a; }
+.fill-neg { background: #dc2626; }
+.val-pos { color: #16a34a; font-weight: 700; width: 45px; text-align: right; }
+.val-neg { color: #dc2626; font-weight: 700; width: 45px; text-align: right; }
+
+/* What-If Card */
+.whatif-card {
+  background: #eff6ff;
   border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  padding: 1.25rem 1.5rem;
-  color: #1e3a8a;
-  font-size: 0.95rem;
 }
 
-.what-if-card strong {
+.whatif-badge {
   color: #1d4ed8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
 }
 
-/* --- Status Messages --- */
-.status-msg {
-  text-align: center;
-  padding: 2rem;
-  color: #64748b;
+.whatif-card h4 {
+  font-size: 1rem;
+  color: #1e3a8a;
+  margin-bottom: 0.25rem;
 }
 
-.error-msg {
-  color: #dc2626;
-  background-color: #fef2f2;
+.whatif-card p {
+  font-size: 0.9rem;
+  color: #1e40af;
+}
+
+/* Alerts */
+.alert-error {
+  background: #fef2f2;
   border: 1px solid #fee2e2;
-  border-radius: 8px;
+  color: #dc2626;
   padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
 }
