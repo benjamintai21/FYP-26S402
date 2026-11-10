@@ -1,0 +1,41 @@
+# ===============================
+# Python & Flask (Backend)
+# ===============================
+backend/venv/
+backend/env/
+backend/__pycache__/
+backend/*/__pycache__/
+*.py[cod]
+*$py.class
+backend/.env
+backend/instance/
+*.sqlite3
+
+# ===============================
+# React & Node.js (Frontend)
+# ===============================
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+frontend/*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===============================
+# Environment Variables & Secrets
+# ===============================
+.env
+.env.local
+.env.*.local
+
+# ===============================
+# Operating System & Editor Files
+# ===============================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
