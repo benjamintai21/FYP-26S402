@@ -3,17 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 
 export default function LogInPage() {
-  const { login } = useApp();
+  const { login, loading } = useApp();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState(null);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
     try {
-      login(form);
+      await login(form);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
@@ -37,7 +38,9 @@ export default function LogInPage() {
             <label htmlFor="password">Password</label>
             <input id="password" name="password" type="password" required value={form.password} onChange={handleChange} />
           </div>
-          <button type="submit" className="submit-btn">Log in</button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? 'Logging in...' : 'Log in'}
+          </button>
         </form>
         <p className="auth-switch">New here? <Link to="/register">Create an account</Link></p>
       </section>

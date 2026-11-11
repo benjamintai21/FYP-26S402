@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import MetricForm from '../components/MetricForm';
+import { DEFAULT_BASELINE } from '../constants';
 
 export default function LoggingPage() {
   const { user, generatePlan, loading, error } = useApp();
@@ -10,6 +11,8 @@ export default function LoggingPage() {
     const result = await generatePlan(metrics);
     if (result) navigate('/dashboard');
   };
+
+  const baseline = user?.baseline || DEFAULT_BASELINE;
 
   return (
     <main className="dashboard-container narrow">
@@ -22,7 +25,7 @@ export default function LoggingPage() {
           <strong>Backend Connection Notice:</strong> {error}. Ensure <code>python app.py</code> is running in <code>backend/</code>.
         </div>
       )}
-      <MetricForm initial={user.baseline} onSubmit={handleSubmit} loading={loading} />
+      <MetricForm initial={baseline} onSubmit={handleSubmit} loading={loading} />
     </main>
   );
 }
