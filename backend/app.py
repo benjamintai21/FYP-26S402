@@ -13,16 +13,18 @@ from auth import hash_password, verify_password, create_access_token, verify_tok
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
+CORS(app, origins=["http://localhost", "http://localhost:5173", "capacitor://localhost"])
 service = RecommendationService()
 
 DEFAULT_METRICS = {"sleep": 6.5, "heartRate": 72, "steps": 7500, "fatigue": 5}
+
 
 @app.before_request
 def startup():
     if not hasattr(app, 'db_initialized'):
         init_db()
         app.db_initialized = True
+
 
 def require_auth(f):
     @wraps(f)
@@ -34,6 +36,7 @@ def require_auth(f):
         request.user_id = user_id
         return f(*args, **kwargs)
     return decorated
+
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -69,6 +72,7 @@ def register():
     finally:
         db.close()
 
+
 @app.route('/api/login', methods=['POST'])
 def login():
     db = SessionLocal()
@@ -91,6 +95,7 @@ def login():
     finally:
         db.close()
 
+
 @app.route('/api/me', methods=['GET'])
 @require_auth
 def get_user():
@@ -104,6 +109,7 @@ def get_user():
         }), 200
     finally:
         db.close()
+
 
 @app.route('/api/log-metrics', methods=['POST'])
 @require_auth
@@ -136,6 +142,7 @@ def log_metrics():
         return jsonify({'error': str(err)}), 500
     finally:
         db.close()
+
 
 @app.route('/api/trends', methods=['GET'])
 @require_auth
@@ -172,5 +179,6 @@ def recommendation_endpoint():
         return jsonify({"error": str(err)}), 400
     return jsonify({"project_id": "CSIT-26-S4-03", **result})
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)

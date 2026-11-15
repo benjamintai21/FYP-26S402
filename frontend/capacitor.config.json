@@ -1,0 +1,9 @@
+{
+  "appId": "com.csit26.healthy360",
+  "appName": "Healthy360",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  }
+}

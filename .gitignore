@@ -9,6 +9,7 @@ backend/*/__pycache__/
 *$py.class
 backend/.env
 backend/instance/
+*.db
 *.sqlite3
 
 # ===============================
@@ -39,3 +40,21 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# ===============================
+# Android Studio & Capacitor
+# ===============================
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/app/release/
+frontend/android/local.properties
+frontend/android/.cxx/
+frontend/android/app/src/main/assets/public/
+frontend/android/app/src/main/res/xml/config.xml
+*.apk
+*.aab
+*.ap_
+*.dex
+*.iml
+.idea/

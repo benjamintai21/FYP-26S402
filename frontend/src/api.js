@@ -1,4 +1,7 @@
-const API_BASE = 'http://localhost:5000/api';
+const isAndroid = /Android/i.test(navigator.userAgent);
+export const API_BASE = isAndroid
+  ? 'http://10.0.2.2:5000/api'
+  : 'http://localhost:5000/api';
 
 const getToken = () => localStorage.getItem('h360_token');
 
@@ -6,9 +9,10 @@ const apiCall = async (url, options = {}) => {
   const token = getToken();
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const res = await fetch(`${API_BASE}${url}`, { ...options, headers });
   if (!res.ok) {
-    const err = await res.json();
+    const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `HTTP ${res.status}`);
   }
   return res.json();
@@ -52,11 +56,8 @@ export async function getTrends() {
 }
 
 export async function fetchRecommendation(metrics) {
-  const res = await fetch(`${API_BASE}/recommendation`, {
+  return apiCall('/recommendation', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(metrics),
   });
-  if (!res.ok) throw new Error('Cannot reach Flask backend (port 5000)');
-  return res.json();
 }
