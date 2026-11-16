@@ -12,6 +12,7 @@ export default function ExplorerPage() {
   const [result, setResult] = useState(latest);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [savedScenarios, setSavedScenarios] = useState([]);
   const timer = useRef(null);
   const requestId = useRef(0);
 
@@ -26,14 +27,17 @@ export default function ExplorerPage() {
     const currentRequestId = ++requestId.current;
     setMetrics(next);
     setError(null);
+    setLoading(true);
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
-      setLoading(true);
       try {
         const nextResult = await fetchWhatIf(next);
         if (currentRequestId === requestId.current) setResult(nextResult);
       } catch (err) {
-        if (currentRequestId === requestId.current) setError(err.message);
+        if (currentRequestId === requestId.current) {
+          setError(err.message);
+          setResult(null);
+        }
       } finally {
         if (currentRequestId === requestId.current) setLoading(false);
       }
@@ -77,6 +81,19 @@ export default function ExplorerPage() {
           ) : (
             <section className="card"><p className="sub-text">Move a slider to simulate a plan.</p></section>
           )}
+          {result && <button className="btn-outline" type="button" disabled={loading || savedScenarios.length >= (user.role === 'premium' ? 6 : 2)}
+            onClick={() => setSavedScenarios((current) => [...current, { metrics: { ...metrics }, result }])}>
+            Add scenario to comparison ({savedScenarios.length}/{user.role === 'premium' ? 6 : 2})
+          </button>}
+          {savedScenarios.length > 0 && <section className="card">
+            <h2>Scenario comparison</h2>
+            {savedScenarios.map((scenario, index) => <div className="form-group" key={index}>
+              <strong>Scenario {index + 1}: {scenario.result.recommendation}</strong>
+              <span>Sleep {scenario.metrics.sleep}h · HR {scenario.metrics.heartRate} · Steps {scenario.metrics.steps} · Fatigue {scenario.metrics.fatigue}</span>
+              <p>{scenario.result.explanation}</p>
+              <button type="button" className="btn-outline" onClick={() => setSavedScenarios((current) => current.filter((_, i) => i !== index))}>Remove</button>
+            </div>)}
+          </section>}
         </div>
       </div>
     </main>

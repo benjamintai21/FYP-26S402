@@ -1,7 +1,7 @@
 import pytest
+import uuid
 
 from app import app
-from auth import create_access_token
 from ml.rationale import BANNED_TERMS
 
 TIRED = {"sleep": 5.5, "heartRate": 80, "steps": 6000, "fatigue": 7}
@@ -11,6 +11,15 @@ FIT = {"sleep": 8.5, "heartRate": 58, "steps": 12000, "fatigue": 2}
 @pytest.fixture(scope="module")
 def client():
     return app.test_client()
+
+
+@pytest.fixture
+def member_token(client):
+    response = client.post('/api/register', json={
+        'name': 'Test Member', 'email': f'{uuid.uuid4()}@example.test', 'password': 'test-password', 'consent': True
+    })
+    assert response.status_code == 201
+    return response.get_json()['token']
 
 
 def post(client, body):
@@ -90,12 +99,11 @@ def test_whatif_requires_authentication(client):
     assert response.status_code == 401
 
 
-def test_whatif_returns_a_scenario_result(client):
-    token = create_access_token("whatif-test-user")
+def test_whatif_returns_a_scenario_result(client, member_token):
     response = client.post(
         "/api/whatif",
         json=TIRED,
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {member_token}"},
     )
 
     assert response.status_code == 200
@@ -105,11 +113,10 @@ def test_whatif_returns_a_scenario_result(client):
     assert data["counterfactual"] is not None
 
 
-def test_whatif_rejects_non_numeric_metrics(client):
-    token = create_access_token("whatif-test-user")
+def test_whatif_rejects_non_numeric_metrics(client, member_token):
     response = client.post(
         "/api/whatif",
         json={"sleep": "unknown"},
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {member_token}"},
     )
     assert response.status_code == 400

@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Icon from '../components/Icon';
+import { homeForRole } from '../roles';
 
 export default function RegisterPage() {
   const { register, loading } = useApp();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', password: '', consent: false });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'registered', consent: false });
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -23,8 +24,8 @@ export default function RegisterPage() {
       return;
     }
     try {
-      await register(form);
-      navigate('/onboarding');
+      const result = await register(form);
+      navigate(result.user.role === 'registered' ? '/onboarding' : homeForRole(result.user.role), { replace: true });
     } catch (err) {
       setError(err.message);
     }
@@ -39,11 +40,18 @@ export default function RegisterPage() {
         </Link>
         <div className="auth-heading">
           <span className="auth-eyebrow">A FRESH START</span>
-          <h1>Build healthier habits</h1>
-          <p>Create your account. Your first check-in is just a moment away.</p>
+          <h1>Create your account</h1>
+          <p>Choose a member or business account to get started.</p>
         </div>
         {error && <div className="alert-error" role="alert">{error}</div>}
         <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="role">Account type</label>
+            <select id="role" name="role" value={form.role} onChange={handleChange}>
+              <option value="registered">Member</option>
+              <option value="business">Business user</option>
+            </select>
+          </div>
           <div className="form-group auth-field">
             <label htmlFor="name">Your name</label>
             <div className="auth-input-wrap">
@@ -76,7 +84,9 @@ export default function RegisterPage() {
           </div>
           <label className="consent">
             <input type="checkbox" name="consent" required checked={form.consent} onChange={handleChange} />
-            <span>I consent to Healthy360 collecting and processing my lifestyle data under the PDPA. I understand this is non-clinical guidance.</span>
+            <span>{form.role === 'registered'
+              ? 'I consent to Healthy360 collecting and processing my lifestyle data under the PDPA. I understand this is non-clinical guidance.'
+              : 'I consent to Healthy360 processing my account information to provide business access.'}</span>
           </label>
           <button type="submit" className="submit-btn auth-submit" disabled={loading}>
             {loading ? 'Creating your account...' : <>Create account <Icon name="arrow" size={19} /></>}

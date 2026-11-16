@@ -1,11 +1,26 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import MetricForm from '../components/MetricForm';
 import { DEFAULT_BASELINE } from '../constants';
+import ActivityLog from '../components/ActivityLog';
 
 export default function LoggingPage() {
-  const { user, generatePlan, loading, error } = useApp();
+  const { user, generatePlan, importSampleWearable, loading, error } = useApp();
   const navigate = useNavigate();
+  const [syncMessage, setSyncMessage] = useState(null);
+  const [syncError, setSyncError] = useState(null);
+
+  const handleSampleSync = async () => {
+    setSyncError(null);
+    setSyncMessage(null);
+    try {
+      const result = await importSampleWearable();
+      setSyncMessage(result.message);
+    } catch (err) {
+      setSyncError(err.message);
+    }
+  };
 
   const handleSubmit = async (metrics) => {
     const result = await generatePlan(metrics);
@@ -26,6 +41,14 @@ export default function LoggingPage() {
         </div>
       )}
       <MetricForm initial={baseline} onSubmit={handleSubmit} loading={loading} />
+      <section className="card">
+        <h2>Wearable sync simulation</h2>
+        <p className="sub-text">Import sample sleep, resting heart rate and steps. No device is connected.</p>
+        <button type="button" className="btn-outline" onClick={handleSampleSync}>Import sample wearable data</button>
+        {syncMessage && <p role="status">{syncMessage}</p>}
+        {syncError && <p className="alert-error" role="alert">{syncError}</p>}
+      </section>
+      <ActivityLog />
     </main>
   );
 }

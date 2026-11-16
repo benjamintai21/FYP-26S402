@@ -1,30 +1,53 @@
+import { useState } from 'react';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Icon from './Icon';
+import { homeForRole, MEMBER_ROLES } from '../roles';
 
 const APP_TABS = [
   { to: '/dashboard', label: 'Today', icon: 'home' },
   { to: '/log', label: 'Check-in', icon: 'activity' },
   { to: '/explorer', label: 'What-If', icon: 'sliders' },
+  { to: '/goals', label: 'Goals', icon: 'activity' },
+  { to: '/marketplace', label: 'Discover', icon: 'home' },
   { to: '/about', label: 'About', icon: 'info' },
 ];
 
 export default function Navbar() {
   const { user, logout } = useApp();
+  const [logoutError, setLogoutError] = useState('');
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const linkClass = ({ isActive }) => (isActive ? 'active' : undefined);
-  const showMobileTabs = !['/login', '/register', '/onboarding'].includes(pathname);
+  const showMobileTabs = !['/login', '/register', '/onboarding', '/dev-reset'].includes(pathname);
+  const member = user && MEMBER_ROLES.includes(user.role);
+  const portalPath = user ? homeForRole(user.role) : '/';
+  const portalLabel = 'Business portal';
+  const tabs = member ? [
+    ...APP_TABS,
+    ...(user.role === 'premium' ? [{ to: '/premium', label: 'Premium', icon: 'activity' }] : []),
+    { to: '/profile', label: 'Profile', icon: 'user' },
+  ] : [
+    { to: portalPath, label: portalLabel, icon: 'home' },
+    { to: '/marketplace', label: 'Discover', icon: 'activity' },
+    { to: '/about', label: 'About', icon: 'info' },
+    { to: '/profile', label: 'Profile', icon: 'user' },
+  ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    setLogoutError('');
+    try {
+      await logout();
+    } catch {
+      setLogoutError('Signed out locally, but the server could not revoke the session.');
+    }
     navigate('/');
   };
 
   return (
     <>
       <nav className="navbar">
-        <Link to={user ? '/dashboard' : '/'} className="nav-brand">
+        <Link to={portalPath} className="nav-brand">
           <span className="brand-mark"><Icon name="activity" size={19} /></span>
           <span className="brand-title">Healthy<span>360</span></span>
           <span className="brand-badge">WELLNESS</span>
@@ -32,10 +55,20 @@ export default function Navbar() {
         <ul className="nav-links">
           {user ? (
             <>
-              <li><NavLink to="/dashboard" className={linkClass}>Today</NavLink></li>
-              <li><NavLink to="/log" className={linkClass}>Check-in</NavLink></li>
-              <li><NavLink to="/explorer" className={linkClass}>What-If</NavLink></li>
+              {member ? (
+                <>
+                  <li><NavLink to="/dashboard" className={linkClass}>Today</NavLink></li>
+                  <li><NavLink to="/log" className={linkClass}>Check-in</NavLink></li>
+                  <li><NavLink to="/explorer" className={linkClass}>What-If</NavLink></li>
+                  <li><NavLink to="/goals" className={linkClass}>Goals</NavLink></li>
+                  {user.role === 'premium' && <li><NavLink to="/premium" className={linkClass}>Premium</NavLink></li>}
+                </>
+              ) : (
+                <li><NavLink to={portalPath} className={linkClass}>{portalLabel}</NavLink></li>
+              )}
               <li><NavLink to="/about" className={linkClass}>About</NavLink></li>
+              <li><NavLink to="/marketplace" className={linkClass}>Discover</NavLink></li>
+              <li><NavLink to="/profile" className={linkClass}>Profile</NavLink></li>
               <li>
                 <button type="button" className="link-btn" onClick={handleLogout}>
                   Log out
@@ -46,6 +79,7 @@ export default function Navbar() {
             <>
               <li><NavLink to="/" end className={linkClass}>Home</NavLink></li>
               <li><NavLink to="/about" className={linkClass}>About</NavLink></li>
+              <li><NavLink to="/marketplace" className={linkClass}>Discover</NavLink></li>
               <li><NavLink to="/login" className={linkClass}>Log in</NavLink></li>
               <li><Link to="/register" className="nav-cta">Get started</Link></li>
             </>
@@ -61,10 +95,11 @@ export default function Navbar() {
           )}
         </div>
       </nav>
+      {logoutError && <div className="alert-error" role="alert">{logoutError}</div>}
 
       {showMobileTabs && (
         <nav className="mobile-tabbar" aria-label="Main navigation">
-          {user ? APP_TABS.map((tab) => (
+          {user ? tabs.map((tab) => (
             <NavLink
               key={tab.to}
               to={tab.to}

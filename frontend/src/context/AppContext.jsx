@@ -1,18 +1,8 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { logMetrics, getTrends, registerUser, loginUser, logoutUser, getMe } from '../api';
-import { DEFAULT_BASELINE } from '../constants';
+import { logMetrics, getTrends, getLatestRecommendation, registerUser, loginUser, logoutUser, getMe, saveOnboarding, syncSampleWearable } from '../api';
+import { MEMBER_ROLES } from '../roles';
 
 const AppContext = createContext(null);
-
-const load = (key, fallback) => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-const save = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -34,7 +24,7 @@ export function AppProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!user) return undefined;
+    if (!user || !MEMBER_ROLES.includes(user.role)) return undefined;
 
     let active = true;
     getTrends()
@@ -45,16 +35,26 @@ export function AppProvider({ children }) {
         if (active) setError(`Could not load trends: ${err.message}`);
       });
 
+    getLatestRecommendation()
+      .then((res) => {
+        if (active) setLatest(res.recommendation);
+      })
+      .catch((err) => {
+        if (active) setError(`Could not load recommendation: ${err.message}`);
+      });
+
     return () => {
       active = false;
     };
   }, [user]);
 
-  const register = async ({ name, email, password }) => {
+  const register = async ({ name, email, password, role, consent }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await registerUser(email, password, name);
+      const res = await registerUser(email, password, name, role, consent);
+      setHistory([]);
+      setLatest(null);
       setUser(res.user);
       return res;
     } catch (err) {
@@ -65,11 +65,13 @@ export function AppProvider({ children }) {
     }
   };
 
-  const login = async ({ email, password }) => {
+  const login = async ({ email, password, profile }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await loginUser(email, password);
+      const res = await loginUser(email, password, profile);
+      setHistory([]);
+      setLatest(null);
       setUser(res.user);
       return res;
     } catch (err) {
@@ -81,15 +83,36 @@ export function AppProvider({ children }) {
   };
 
   const logout = async () => {
-    await logoutUser();
-    setUser(null);
-    setHistory([]);
-    setLatest(null);
-    setError(null);
+    try {
+      await logoutUser();
+    } finally {
+      setUser(null);
+      setHistory([]);
+      setLatest(null);
+      setError(null);
+    }
   };
 
-  const completeOnboarding = (profile = {}) => {
-    if (user) setUser({ ...user, onboarded: true, ...profile });
+  const completeOnboarding = async (profile) => {
+    const result = await saveOnboarding(profile);
+    setUser(result.user);
+  };
+
+  const refreshUser = async () => {
+    const result = await getMe();
+    setUser(result.user);
+    return result.user;
+  };
+
+  const importSampleWearable = async () => {
+    const result = await syncSampleWearable();
+    const trends = await getTrends();
+    setHistory(trends.logs || []);
+    return result;
+  };
+
+  const updateRecommendationAdherence = (id, adherence) => {
+    setLatest((current) => current && current.recommendation_id === id ? { ...current, adherence } : current);
   };
 
   const generatePlan = async (metrics) => {
@@ -120,7 +143,10 @@ export function AppProvider({ children }) {
     login,
     logout,
     completeOnboarding,
+    refreshUser,
+    importSampleWearable,
     generatePlan,
+    updateRecommendationAdherence,
   };
 
   return (

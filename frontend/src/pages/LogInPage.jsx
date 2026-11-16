@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Icon from '../components/Icon';
+import { homeForRole } from '../roles';
 
 export default function LogInPage() {
   const { login, loading } = useApp();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ email: '', password: '', profile: 'member' });
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -16,8 +17,8 @@ export default function LogInPage() {
     e.preventDefault();
     setError(null);
     try {
-      await login(form);
-      navigate('/dashboard');
+      const result = await login(form);
+      navigate(homeForRole(result.user.role), { replace: true });
     } catch (err) {
       setError(err.message);
     }
@@ -37,6 +38,13 @@ export default function LogInPage() {
         </div>
         {error && <div className="alert-error" role="alert">{error}</div>}
         <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="profile">Sign in as</label>
+            <select id="profile" name="profile" value={form.profile} onChange={handleChange}>
+              <option value="member">Member (registered or premium)</option>
+              <option value="business">Business user</option>
+            </select>
+          </div>
           <div className="form-group auth-field">
             <label htmlFor="email">Email address</label>
             <div className="auth-input-wrap">
@@ -65,6 +73,7 @@ export default function LogInPage() {
         </form>
         <div className="auth-trust"><Icon name="lock" size={15} /> Your health data stays private</div>
         <p className="auth-switch">New to Healthy360? <Link to="/register">Create an account</Link></p>
+        {form.profile === 'business' && <p className="auth-switch"><Link to="/dev-reset">Development password reset</Link></p>}
       </section>
     </main>
   );

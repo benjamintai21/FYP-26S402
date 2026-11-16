@@ -4,19 +4,29 @@ import { useApp } from '../context/AppContext';
 import MetricForm from '../components/MetricForm';
 import { DEFAULT_BASELINE } from '../constants';
 
-const AGE_BRACKETS = ['18–29', '30–39', '40–49', '50–59', '60+'];
-const ACTIVITY_LEVELS = ['Mostly sedentary', 'Lightly active', 'Moderately active', 'Very active'];
+const AGE_BRACKETS = ['18-29', '30-44', '45-59', '60+'];
+const ACTIVITY_LEVELS = ['sedentary', 'light', 'moderate', 'very_active'];
 
 export default function OnboardingPage() {
-  const { completeOnboarding } = useApp();
+  const { completeOnboarding, user } = useApp();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState({ ageBracket: AGE_BRACKETS[0], activityLevel: ACTIVITY_LEVELS[1] });
+  const [profile, setProfile] = useState({ ageBracket: user.ageBracket || AGE_BRACKETS[0], activityLevel: user.activityLevel || ACTIVITY_LEVELS[1] });
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const handleChange = (e) => setProfile({ ...profile, [e.target.name]: e.target.value });
 
-  const handleSubmit = (baseline) => {
-    completeOnboarding({ ...profile, baseline });
-    navigate('/dashboard');
+  const handleSubmit = async (baseline) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await completeOnboarding({ ...profile, baseline });
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -25,6 +35,7 @@ export default function OnboardingPage() {
         <h1>Set up your baseline</h1>
         <p>Tell us what's typical for you, so recommendations are personal. Age bracket and activity level are also used for fairness auditing.</p>
       </header>
+      {error && <div className="alert-error" role="alert">{error}</div>}
       <div className="grid-col">
         <section className="card">
           <div className="card-header"><h2>About you</h2></div>
@@ -42,11 +53,12 @@ export default function OnboardingPage() {
           </div>
         </section>
         <MetricForm
-          initial={DEFAULT_BASELINE}
+          initial={user.baseline || DEFAULT_BASELINE}
           title="Your typical day"
           subtitle="These become your personal baselines"
           submitLabel="Save baseline and continue"
           onSubmit={handleSubmit}
+          loading={saving}
         />
       </div>
     </main>

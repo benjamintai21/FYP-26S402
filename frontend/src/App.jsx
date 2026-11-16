@@ -10,6 +10,14 @@ import OnboardingPage from './pages/OnboardingPage';
 import Dashboard from './pages/Dashboard';
 import LoggingPage from './pages/LoggingPage';
 import ExplorerPage from './pages/ExplorerPage';
+import BusinessPage from './pages/BusinessPage';
+import ProfilePage from './pages/ProfilePage';
+import DevResetPage from './pages/DevResetPage';
+import GoalsPage from './pages/GoalsPage';
+import MarketplacePage from './pages/MarketplacePage';
+import SubscriptionPage from './pages/SubscriptionPage';
+import PremiumPage from './pages/PremiumPage';
+import { MEMBER_ROLES } from './roles';
 import './App.css';
 
 export default function App() {
@@ -21,19 +29,26 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/login" element={<LogInPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/dev-reset" element={<DevResetPage />} />
             <Route
               path="/onboarding"
-              element={<ProtectedRoute requireOnboarded={false}><OnboardingPage /></ProtectedRoute>}
+              element={<ProtectedRoute roles={MEMBER_ROLES} requireOnboarded={false}><OnboardingPage /></ProtectedRoute>}
             />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/log" element={<ProtectedRoute><LoggingPage /></ProtectedRoute>} />
-            <Route path="/explorer" element={<ProtectedRoute><ExplorerPage /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute roles={MEMBER_ROLES}><Dashboard /></ProtectedRoute>} />
+            <Route path="/log" element={<ProtectedRoute roles={MEMBER_ROLES}><LoggingPage /></ProtectedRoute>} />
+            <Route path="/explorer" element={<ProtectedRoute roles={MEMBER_ROLES}><ExplorerPage /></ProtectedRoute>} />
+            <Route path="/goals" element={<ProtectedRoute roles={MEMBER_ROLES}><GoalsPage /></ProtectedRoute>} />
+            <Route path="/subscription" element={<ProtectedRoute roles={MEMBER_ROLES} requireOnboarded={false}><SubscriptionPage /></ProtectedRoute>} />
+            <Route path="/premium" element={<ProtectedRoute roles={['premium']}><PremiumPage /></ProtectedRoute>} />
+            <Route path="/business" element={<ProtectedRoute roles={['business']} requireOnboarded={false}><BusinessPage /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute roles={['registered', 'premium', 'business']} requireOnboarded={false}><ProfilePage /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <footer className="site-footer">
-            Healthy360 • Non-clinical lifestyle guidance only • Not medical advice • PDPA-compliant
+            Healthy360 • Non-clinical lifestyle guidance only • Not medical advice
           </footer>
         </div>
       </BrowserRouter>
