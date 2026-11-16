@@ -1,33 +1,41 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { fetchRecommendation } from '../api';
-import { METRIC_FIELDS } from '../constants';
+import { fetchWhatIf } from '../api';
+import { DEFAULT_BASELINE, METRIC_FIELDS } from '../constants';
 import RecommendationCard from '../components/RecommendationCard';
 import ShapBreakdown from '../components/ShapBreakdown';
 import WhatIfExplorer from '../components/WhatIfExplorer';
 
 export default function ExplorerPage() {
   const { user, latest } = useApp();
-  const [metrics, setMetrics] = useState(latest?.metrics ?? user.baseline);
+  const [metrics, setMetrics] = useState(latest?.metrics ?? user.baseline ?? DEFAULT_BASELINE);
   const [result, setResult] = useState(latest);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const timer = useRef(null);
+  const requestId = useRef(0);
+
+  useEffect(() => () => {
+    clearTimeout(timer.current);
+    requestId.current += 1;
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     const next = { ...metrics, [name]: parseFloat(value) };
+    const currentRequestId = ++requestId.current;
     setMetrics(next);
+    setError(null);
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       setLoading(true);
       try {
-        setResult(await fetchRecommendation(next));
-        setError(null);
+        const nextResult = await fetchWhatIf(next);
+        if (currentRequestId === requestId.current) setResult(nextResult);
       } catch (err) {
-        setError(err.message);
+        if (currentRequestId === requestId.current) setError(err.message);
       } finally {
-        setLoading(false);
+        if (currentRequestId === requestId.current) setLoading(false);
       }
     }, 300);
   };
@@ -46,7 +54,7 @@ export default function ExplorerPage() {
           <section className="card">
             <div className="card-header">
               <h2>Scenario</h2>
-              <span className="sub-text">{loading ? 'Recalculating...' : 'Drag a slider'}</span>
+              <span className="sub-text" aria-live="polite">{loading ? 'Recalculating...' : 'Drag a slider'}</span>
             </div>
             {METRIC_FIELDS.map((f) => (
               <div className="form-group" key={f.name}>
