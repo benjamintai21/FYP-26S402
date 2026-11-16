@@ -1,6 +1,6 @@
 import logging
 from functools import wraps
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -149,13 +149,7 @@ def log_metrics():
 def get_trends():
     db = SessionLocal()
     try:
-        cutoff = (datetime.now().date() - timedelta(days=29)).strftime('%Y-%m-%d')
-        logs = (
-            db.query(DailyLog)
-            .filter(DailyLog.user_id == request.user_id, DailyLog.date >= cutoff)
-            .order_by(DailyLog.date.desc())
-            .all()
-        )
+        logs = db.query(DailyLog).filter(DailyLog.user_id == request.user_id).order_by(DailyLog.date.desc()).limit(30).all()
         return jsonify({
             'logs': [
                 {
@@ -169,20 +163,6 @@ def get_trends():
         }), 200
     finally:
         db.close()
-
-
-@app.route('/api/whatif', methods=['POST'])
-@require_auth
-def what_if():
-    payload = request.get_json(silent=True)
-    if not isinstance(payload, dict):
-        return jsonify({'error': 'Request body must be a JSON object'}), 400
-
-    try:
-        result = service.recommend(payload)
-    except InvalidMetricError as err:
-        return jsonify({'error': str(err)}), 400
-    return jsonify({'project_id': 'CSIT-26-S4-03', **result}), 200
 
 
 @app.route("/api/recommendation", methods=["GET", "POST"])

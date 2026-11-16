@@ -33,23 +33,6 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    if (!user) return undefined;
-
-    let active = true;
-    getTrends()
-      .then((res) => {
-        if (active) setHistory(res.logs || []);
-      })
-      .catch((err) => {
-        if (active) setError(`Could not load trends: ${err.message}`);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [user]);
-
   const register = async ({ name, email, password }) => {
     setLoading(true);
     setError(null);
@@ -85,7 +68,6 @@ export function AppProvider({ children }) {
     setUser(null);
     setHistory([]);
     setLatest(null);
-    setError(null);
   };
 
   const completeOnboarding = (profile = {}) => {

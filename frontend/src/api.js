@@ -61,10 +61,3 @@ export async function fetchRecommendation(metrics) {
     body: JSON.stringify(metrics),
   });
 }
-
-export async function fetchWhatIf(metrics) {
-  return apiCall('/whatif', {
-    method: 'POST',
-    body: JSON.stringify(metrics),
-  });
-}

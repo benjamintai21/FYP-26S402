@@ -1,7 +1,6 @@
 import pytest
 
 from app import app
-from auth import create_access_token
 from ml.rationale import BANNED_TERMS
 
 TIRED = {"sleep": 5.5, "heartRate": 80, "steps": 6000, "fatigue": 7}
@@ -81,35 +80,5 @@ def test_counterfactual_only_improves_habits(client):
 def test_malformed_json_is_rejected(client):
     response = client.post(
         "/api/recommendation", data="not json", content_type="application/json"
-    )
-    assert response.status_code == 400
-
-
-def test_whatif_requires_authentication(client):
-    response = client.post("/api/whatif", json=TIRED)
-    assert response.status_code == 401
-
-
-def test_whatif_returns_a_scenario_result(client):
-    token = create_access_token("whatif-test-user")
-    response = client.post(
-        "/api/whatif",
-        json=TIRED,
-        headers={"Authorization": f"Bearer {token}"},
-    )
-
-    assert response.status_code == 200
-    data = response.get_json()
-    assert data["recommendation"]
-    assert data["what_if"]
-    assert data["counterfactual"] is not None
-
-
-def test_whatif_rejects_non_numeric_metrics(client):
-    token = create_access_token("whatif-test-user")
-    response = client.post(
-        "/api/whatif",
-        json={"sleep": "unknown"},
-        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 400
