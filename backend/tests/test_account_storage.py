@@ -139,7 +139,7 @@ def test_member_baseline_persists_and_sample_sync_is_labeled():
     me = client.get('/api/me', headers=headers).get_json()['user']
     assert me['onboarded'] is True
     assert me['baseline'] == profile['baseline']
-    assert client.post('/api/simulated-wearable-sync', headers=headers).status_code == 201
+    assert client.post('/api/wearable/sync', headers=headers).status_code == 201
     db = SessionLocal()
     try:
         user = db.query(User).filter_by(user_id=registered['user']['user_id']).one()
@@ -164,6 +164,34 @@ def test_simulated_business_reset_is_disabled_by_default_and_token_is_single_use
     assert client.post('/api/dev/password-reset/confirm', json=payload).status_code == 200
     assert client.post('/api/dev/password-reset/confirm', json=payload).status_code == 400
     assert client.post('/api/login', json={'email': email, 'password': 'new-password', 'profile': 'business'}).status_code == 200
+
+
+@pytest.mark.parametrize('role', ['registered', 'premium'])
+def test_simulated_member_reset_is_local_only_and_revokes_sessions(monkeypatch, role):
+    client = app.test_client()
+    email, registered = register(client)
+    if role == 'premium':
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter_by(user_id=registered['user']['user_id']).one()
+            user.role = role
+            db.commit()
+        finally:
+            db.close()
+    assert client.post('/api/dev/password-reset', json={'email': email}).status_code == 404
+    monkeypatch.setenv('DEV_SIMULATED_RESET', '1')
+    assert client.post('/api/dev/password-reset', json={'email': email},
+                       environ_base={'REMOTE_ADDR': '192.0.2.1'}).status_code == 404
+    response = client.post('/api/dev/password-reset', json={'email': email})
+    assert response.status_code == 200
+    payload = {'email': email, 'token': response.get_json()['token'], 'password': 'new-password'}
+    assert client.post('/api/dev/password-reset/confirm', json=payload,
+                       environ_base={'REMOTE_ADDR': '192.0.2.1'}).status_code == 404
+    assert client.post('/api/dev/password-reset/confirm', json={**payload, 'token': 'invalid'}).status_code == 400
+    assert client.post('/api/dev/password-reset/confirm', json=payload).status_code == 200
+    assert client.post('/api/dev/password-reset/confirm', json=payload).status_code == 400
+    assert client.get('/api/me', headers={'Authorization': f"Bearer {registered['token']}"}).status_code == 401
+    assert client.post('/api/login', json={'email': email, 'password': 'new-password', 'profile': 'member'}).status_code == 200
 
 
 def test_goals_and_preferences_are_private_and_persisted():
@@ -280,6 +308,9 @@ def test_premium_plan_access_and_unsupported_restrictions():
         db.close()
     prefs = {'workout': ['Walking'], 'dietary': ['nut allergy'], 'availableMinutes': 15}
     assert client.put('/api/preferences', json=prefs, headers=headers).status_code == 200
+    assert client.post('/api/log-metrics', headers=headers, json={
+        'sleep': 7, 'heartRate': 70, 'steps': 8000, 'fatigue': 4,
+    }).status_code == 200
     assert client.post('/api/premium/plans', json={'type': 'meal'}, headers=headers).status_code == 400
     workout = client.post('/api/premium/plans', json={'type': 'workout'}, headers=headers)
     assert workout.status_code == 201
@@ -287,7 +318,49 @@ def test_premium_plan_access_and_unsupported_restrictions():
     prefs['dietary'] = ['vegan']
     client.put('/api/preferences', json=prefs, headers=headers)
     assert client.post('/api/premium/plans', json={'type': 'meal'}, headers=headers).status_code == 201
-    assert client.get('/api/premium/articles', headers=headers).get_json()['articles'] == []
+    assert client.get('/api/articles', headers=headers).get_json()['articles'] == []
+
+
+def test_premium_plans_use_own_latest_recovery_state_and_preferences():
+    client = app.test_client()
+    _, member = register(client)
+    headers = {'Authorization': f"Bearer {member['token']}"}
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(user_id=member['user']['user_id']).one()
+        user.role = 'premium'
+        db.commit()
+    finally:
+        db.close()
+    _, other = register(client)
+    other_headers = {'Authorization': f"Bearer {other['token']}"}
+    assert client.post('/api/log-metrics', headers=other_headers, json={
+        'sleep': 8.5, 'heartRate': 58, 'steps': 12000, 'fatigue': 2,
+    }).status_code == 200
+    assert client.post('/api/premium/plans', headers=headers, json={'type': 'workout'}).status_code == 409
+    prefs = {'workout': ['cycling'], 'dietary': ['vegan'], 'availableMinutes': 15}
+    assert client.put('/api/preferences', headers=headers, json=prefs).status_code == 200
+    tired = client.post('/api/log-metrics', headers=headers, json={
+        'sleep': 5.5, 'heartRate': 80, 'steps': 6000, 'fatigue': 7,
+    }).get_json()
+    recovery = client.post('/api/premium/plans', headers=headers, json={'type': 'workout'}).get_json()['plans'][0]
+    meal = client.post('/api/premium/plans', headers=headers, json={'type': 'meal'}).get_json()['plans'][0]
+    assert recovery['details']['recoveryLevel'] == tired['plan_level'] == 0
+    assert recovery['details']['recommendationId'] == tired['recommendation_id']
+    assert recovery['details']['minutes'] <= 15
+    assert 'cycling' in ' '.join(recovery['details']['items']).lower()
+    assert meal['details']['recoveryLevel'] == 0
+    assert meal['details']['preferences'] == ['vegan']
+    fit = client.post('/api/log-metrics', headers=headers, json={
+        'sleep': 8.5, 'heartRate': 58, 'steps': 12000, 'fatigue': 2,
+    }).get_json()
+    active = client.post('/api/premium/plans', headers=headers, json={'type': 'workout'}).get_json()['plans'][0]
+    active_meal = client.post('/api/premium/plans', headers=headers, json={'type': 'meal'}).get_json()['plans'][0]
+    assert active['details']['recoveryLevel'] == fit['plan_level'] == 2
+    assert active['details']['recommendationId'] == fit['recommendation_id']
+    assert active['details']['items'] != recovery['details']['items']
+    assert active_meal['details']['recoveryLevel'] == 2
+    assert active_meal['details']['items'] != meal['details']['items']
 
 
 def test_challenge_requires_consent_and_excludes_simulated_steps():
@@ -344,6 +417,7 @@ def test_feedback_is_private_unless_user_opts_in():
     assert client.post('/api/feedback', headers=headers, json={'comment': comment, 'clarity': 5, 'public': True}).status_code == 201
     public = client.get('/api/public-feedback').get_json()['feedback']
     assert any(item['comment'] == comment and 'user_id' not in item for item in public)
+    assert client.get('/api/feedback/public').get_json()['feedback'] == public
 
 
 def test_registration_consent_and_activity_logs():

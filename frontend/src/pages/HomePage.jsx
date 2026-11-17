@@ -47,7 +47,7 @@ export default function HomePage() {
       </div>
       <section className="card">
         <h2>Public feedback</h2>
-        <p className="sub-text">Feedback is shared by users and is not moderated.</p>
+        <p className="sub-text">Feedback is shared by other real users</p>
         {feedbackError && <p className="alert-error" role="alert">Could not load feedback: {feedbackError}</p>}
         {!feedbackError && feedback.length === 0 && <p className="sub-text">No public feedback yet.</p>}
         {feedback.map((item) => <div className="form-group" key={item.id}>

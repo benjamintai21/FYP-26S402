@@ -33,13 +33,14 @@ export default function PremiumPage() {
         <div className="grid-col">
           <section className="card">
             <h2>Generate ideas</h2>
-            <p className="sub-text">Workout ideas support walking, cycling and yoga. Meal ideas support vegetarian and vegan preferences; other restrictions cannot yet be checked.</p>
+            <p className="sub-text">Complete a daily check-in first. Ideas use your latest recommendation. Workout ideas support walking, cycling and yoga. Meal ideas support vegetarian and vegan preferences; other restrictions cannot yet be checked.</p>
             <button type="button" className="btn-outline" disabled={busy} onClick={() => generate('workout')}>Generate workout ideas</button>{' '}
             <button type="button" className="btn-outline" disabled={busy} onClick={() => generate('meal')}>Generate meal ideas</button>
           </section>
           {plans.map((plan) => <section className="card" key={plan.id}>
             <h3>{plan.title}</h3>
             <p>{plan.details.notes}</p>
+            {plan.details.recoveryRecommendation && <p>Based on your check-in: {plan.details.recoveryRecommendation}</p>}
             {plan.details.goals.length > 0 && <p>Active goals: {plan.details.goals.join(', ')}</p>}
             {plan.details.preferences.length > 0 && <p>Preferences: {plan.details.preferences.join(', ')}</p>}
             <ul>{plan.details.items.map((item, index) => <li key={index}>{item}</li>)}</ul>

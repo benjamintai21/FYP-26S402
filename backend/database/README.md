@@ -57,7 +57,7 @@ migration automatically.
   occurs. Cancellation retains access through the displayed end date.
 - The wearable button imports labelled sample data; it does not connect to a
   device. Sample logs are excluded from challenges and cohort analytics.
-- Simulated business password reset is disabled by default. For local
+- Simulated member and business password reset is disabled by default. For local
   development only, set `DEV_SIMULATED_RESET=1` before starting Flask. It
   displays a token instead of sending email and must never be enabled on a
   publicly reachable or production server.
@@ -65,7 +65,9 @@ migration automatically.
   metrics below five contributors. This threshold does **not** by itself
   guarantee anonymity. Challenge scores are public under a random pseudonym
   only after a separate opt-in.
-- Workout ideas support walking, cycling and yoga. Meal ideas support
+- Premium ideas require a saved daily check-in and use its latest recovery
+  recommendation along with supported preferences and goals. Meal variants
+  are examples, not nutrition advice. Workout ideas support walking, cycling and yoga. Meal ideas support
   vegetarian and vegan preferences; other restrictions are rejected rather
   than assumed safe. Ideas are not medical or professional advice. Approved
   articles are shown only if records exist; approval alone does not establish

@@ -10,6 +10,8 @@ export default function DevResetPage() {
   const request = async (event) => {
     event.preventDefault();
     setError('');
+    setMessage('');
+    setToken('');
     try {
       const result = await requestSimulatedReset(email);
       setToken(result.token);
@@ -19,6 +21,7 @@ export default function DevResetPage() {
   const confirm = async (event) => {
     event.preventDefault();
     setError('');
+    setMessage('');
     try {
       const result = await confirmSimulatedReset(email, token, password);
       setToken('');
@@ -33,7 +36,7 @@ export default function DevResetPage() {
       {error && <p className="alert-error" role="alert">{error}</p>}
       <section className="card">
         <form onSubmit={request}>
-          <div className="form-group"><label htmlFor="reset-email">Business email</label><input id="reset-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+          <div className="form-group"><label htmlFor="reset-email">Account email</label><input id="reset-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
           <button className="submit-btn" type="submit">Generate simulated token</button>
         </form>
         {token && <form onSubmit={confirm}>

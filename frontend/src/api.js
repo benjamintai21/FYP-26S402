@@ -61,7 +61,7 @@ export async function changePassword(currentPassword, newPassword) {
 }
 
 export async function syncSampleWearable() {
-  return apiCall('/simulated-wearable-sync', { method: 'POST' });
+  return apiCall('/wearable/sync', { method: 'POST' });
 }
 
 export async function requestSimulatedReset(email) {
@@ -91,13 +91,13 @@ export const deleteBusinessItem = (resource, id) => apiCall(`/business/${resourc
 export const getMarketplace = () => apiCall('/marketplace', { method: 'GET' });
 export const reserveOffering = (resource, id) => apiCall(`/marketplace/${resource}/${id}/reserve`, { method: 'POST' });
 export const getEventNotifications = () => apiCall('/event-notifications', { method: 'GET' });
-export const getPublicFeedback = () => apiCall('/public-feedback', { method: 'GET' });
+export const getPublicFeedback = () => apiCall('/feedback/public', { method: 'GET' });
 export const submitFeedback = (feedback) => apiCall('/feedback', { method: 'POST', body: JSON.stringify(feedback) });
 export const getSubscription = () => apiCall('/subscription', { method: 'GET' });
 export const updateSubscription = (action) => apiCall('/subscription', { method: 'POST', body: JSON.stringify({ action }) });
 export const getPremiumPlans = () => apiCall('/premium/plans', { method: 'GET' });
 export const generatePremiumPlan = (type) => apiCall('/premium/plans', { method: 'POST', body: JSON.stringify({ type }) });
-export const getPremiumArticles = () => apiCall('/premium/articles', { method: 'GET' });
+export const getPremiumArticles = () => apiCall('/articles', { method: 'GET' });
 export const getGoalInsights = () => apiCall('/premium/goal-insights', { method: 'GET' });
 export const getChallenges = () => apiCall('/challenges', { method: 'GET' });
 export const getBusinessChallenges = () => apiCall('/business/challenges', { method: 'GET' });

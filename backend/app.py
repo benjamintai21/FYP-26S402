@@ -544,6 +544,21 @@ def premium_plans():
     try:
         user = db.query(User).filter_by(user_id=request.user_id).one()
         if request.method == 'POST':
+            recommendation = db.query(Recommendation).join(
+                DailyLog, Recommendation.log_id == DailyLog.log_id
+            ).join(
+                UserProfile, DailyLog.pseudonym_token == UserProfile.pseudonym_token
+            ).filter(
+                UserProfile.user_id == user.id, Recommendation.response_json.isnot(None)
+            ).order_by(Recommendation.rec_id.desc()).first()
+            if not recommendation:
+                return jsonify({'error': 'Complete a daily check-in before generating ideas'}), 409
+            response = recommendation.response_json
+            level = response.get('plan_level') if isinstance(response, dict) else None
+            label = response.get('recommendation') if isinstance(response, dict) else None
+            if type(level) is not int or level not in SHORT_PLANS or not isinstance(label, str) or not label:
+                app.logger.error('Saved recommendation has an invalid recovery level')
+                return jsonify({'error': 'Saved recommendation is unavailable; complete a new check-in'}), 409
             prefs = db.query(UserPreference).filter_by(user_id=user.id).first()
             goals = db.query(FitnessGoal).filter_by(user_id=user.id, status='active').all()
             goal_titles = [goal.title for goal in goals]
@@ -558,13 +573,18 @@ def premium_plans():
                 categories = {goal.category for goal in goals}
                 activity = 'walking' if 'steps' in categories and (not requested or 'walking' in requested) else requested[0] if requested else 'walking'
                 duration = min(minutes, 30)
+                pace = {
+                    0: 'at an easy, gentle pace',
+                    1: 'at a comfortable, steady pace',
+                    2: 'at a comfortable pace, varying the pace if you wish',
+                }[level]
                 third_session = ('Session 3: choose rest or gentle movement for your recovery goal.'
                                  if 'recovery_days' in categories else
-                                 f'Session 3: repeat {activity} for up to {duration} minutes if comfortable.')
+                                 f'Session 3: repeat {activity} for up to {duration} minutes {pace} if comfortable.')
                 payload = {
                     'notes': 'General lifestyle ideas, not a medical or exercise prescription. Choose a comfortable pace and stop if uncomfortable.',
                     'goals': goal_titles, 'preferences': requested, 'minutes': duration,
-                    'items': [f'Session 1: {activity} for up to {duration} minutes at a comfortable pace.',
+                    'items': [f'Session 1: {activity} for up to {duration} minutes {pace}.',
                               'Session 2: choose rest or gentle movement.', third_session],
                 }
                 title = 'Gentle activity ideas'
@@ -572,13 +592,22 @@ def premium_plans():
                 dietary = [item.lower() for item in (prefs.dietary_preferences_json or [])] if prefs else []
                 if any(item not in ('vegetarian', 'vegan') for item in dietary):
                     return jsonify({'error': 'Meal ideas currently support vegetarian and vegan preferences only; other restrictions cannot be checked safely'}), 400
+                meals = {
+                    0: ['Breakfast: oats with fruit.', 'Lunch: rice, beans and vegetables.',
+                        'Dinner: lentils and vegetables.'],
+                    1: ['Breakfast: fruit and oat porridge.', 'Lunch: chickpeas, rice and vegetables.',
+                        'Dinner: vegetable and bean soup.'],
+                    2: ['Breakfast: oats with banana.', 'Lunch: lentils, rice and vegetables.',
+                        'Dinner: chickpeas and vegetables.'],
+                }
                 payload = {
                     'notes': 'General meal ideas only. Verify every ingredient and label against your own allergies and dietary needs; this is not nutritional or medical advice.',
                     'goals': goal_titles, 'preferences': dietary,
-                    'items': ['Breakfast: oats with fruit.', 'Lunch: rice, beans and vegetables.',
-                              'Dinner: lentils and vegetables.'],
+                    'items': meals[level],
                 }
                 title = 'Plant-based meal ideas'
+            payload.update({'recoveryLevel': level, 'recommendationId': recommendation.rec_id,
+                            'recoveryRecommendation': label})
             plan = GeneratedPlan(user_id=user.id, plan_type=data['type'], title=title, plan_payload_json=payload)
             db.add(plan)
             db.commit()
@@ -589,6 +618,7 @@ def premium_plans():
         db.close()
 
 
+@app.route('/api/articles', methods=['GET'])
 @app.route('/api/premium/articles', methods=['GET'])
 @require_auth
 @require_roles('premium')
@@ -1008,6 +1038,7 @@ def business_analytics():
         db.close()
 
 
+@app.route('/api/feedback/public', methods=['GET'])
 @app.route('/api/public-feedback', methods=['GET'])
 def public_feedback():
     db = SessionLocal()
@@ -1114,6 +1145,7 @@ def event_notifications():
         db.close()
 
 
+@app.route('/api/wearable/sync', methods=['POST'])
 @app.route('/api/simulated-wearable-sync', methods=['POST'])
 @require_auth
 @require_roles(*MEMBER_ROLES)
@@ -1142,9 +1174,11 @@ def dev_password_reset():
         return jsonify({'error': 'Email is required'}), 400
     db = SessionLocal()
     try:
-        user = db.query(User).filter_by(email=data['email'], role='business', is_active=True).first()
+        user = db.query(User).filter(User.email == data['email'],
+                                     User.role.in_((*MEMBER_ROLES, 'business')),
+                                     User.is_active.is_(True)).first()
         if not user:
-            return jsonify({'error': 'Business account not found in development mode'}), 404
+            return jsonify({'error': 'Account not found in development mode'}), 404
         token = secrets.token_urlsafe(32)
         user.reset_token_hash = hashlib.sha256(token.encode()).hexdigest()
         user.reset_token_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
@@ -1165,7 +1199,9 @@ def dev_password_reset_confirm():
         return jsonify({'error': 'Password must be at least 6 characters'}), 400
     db = SessionLocal()
     try:
-        user = db.query(User).filter_by(email=data['email'], role='business', is_active=True).first()
+        user = db.query(User).filter(User.email == data['email'],
+                                     User.role.in_((*MEMBER_ROLES, 'business')),
+                                     User.is_active.is_(True)).first()
         token_hash = hashlib.sha256(data['token'].encode()).hexdigest()
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         if (not user or not user.reset_token_hash or not user.reset_token_expires_at
