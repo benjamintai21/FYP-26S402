@@ -12,11 +12,14 @@ import LoggingPage from './pages/LoggingPage';
 import ExplorerPage from './pages/ExplorerPage';
 import BusinessPage from './pages/BusinessPage';
 import ProfilePage from './pages/ProfilePage';
+import ProfileEditPage from './pages/ProfileEditPage';
 import DevResetPage from './pages/DevResetPage';
 import GoalsPage from './pages/GoalsPage';
 import MarketplacePage from './pages/MarketplacePage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import PremiumPage from './pages/PremiumPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import { MEMBER_ROLES } from './roles';
 import './App.css';
 
@@ -32,6 +35,8 @@ export default function App() {
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/login" element={<LogInPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/dev-reset" element={<DevResetPage />} />
             <Route
               path="/onboarding"
@@ -45,6 +50,7 @@ export default function App() {
             <Route path="/premium" element={<ProtectedRoute roles={['premium']}><PremiumPage /></ProtectedRoute>} />
             <Route path="/business" element={<ProtectedRoute roles={['business']} requireOnboarded={false}><BusinessPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute roles={['registered', 'premium', 'business']} requireOnboarded={false}><ProfilePage /></ProtectedRoute>} />
+            <Route path="/profile/edit" element={<ProtectedRoute roles={['registered', 'premium', 'business']} requireOnboarded={false}><ProfileEditPage /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <footer className="site-footer">

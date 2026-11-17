@@ -30,9 +30,11 @@ export default function ProfilePage() {
         <p><strong>Name:</strong> {user.name}</p>
         <p><strong>Email:</strong> {user.email}</p>
         <p><strong>Account:</strong> {user.role}</p>
+        {user.profile?.display_name && <p><strong>Display name:</strong> {user.profile.display_name}</p>}
         {user.role !== 'business' && <Link to="/onboarding">Update lifestyle baseline</Link>}
         {user.role !== 'business' && <p><Link to="/subscription">View test subscription</Link></p>}
         {user.role === 'premium' && <p><Link to="/premium">Premium tools</Link></p>}
+        <p><Link to="/profile/edit">Edit profile</Link></p>
       </section>
       <section className="card">
         <h2>Change password</h2>

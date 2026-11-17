@@ -98,3 +98,6 @@ Changes
     Test Case Identifier: Always reference test cases using the project schema TC-<MODULE>-<ID> (e.g., TC-AUTH-01, TC-RECOM-01, TC-XAI-01).
 
 - **Python Dependency Management:** Never run `pip freeze > requirements.txt` on a fresh virtual environment without first running `pip install -r requirements.txt`. Prefer maintaining top-level dependencies in `backend/requirements.txt` and always verify with `pip check` and `git diff backend/requirements.txt` before committing.
+
+## Language & Output Rules
+- Always think, plan, and respond strictly in **English**. Never output Chinese or any non-English text, even when switching models.

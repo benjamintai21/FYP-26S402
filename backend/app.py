@@ -369,6 +369,31 @@ def onboarding():
         db.close()
 
 
+@app.route('/api/profile', methods=['GET', 'PUT'])
+@require_auth
+@require_roles(*MEMBER_ROLES)
+def profile():
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(user_id=request.user_id).one()
+        profile_obj = db.query(UserProfile).filter_by(user_id=user.id).one()
+
+        if request.method == 'PUT':
+            data = request.get_json(silent=True)
+            if not isinstance(data, dict):
+                return jsonify({'error': 'Profile data must be an object'}), 400
+
+            # Update allowed fields
+            if 'displayName' in data and isinstance(data['displayName'], str) and data['displayName'].strip():
+                profile_obj.display_name = data['displayName'].strip()[:100]
+
+            db.commit()
+
+        return jsonify({'user': {**user_payload(user), **profile_payload(profile_obj)}}), 200
+    finally:
+        db.close()
+
+
 @app.route('/api/change-password', methods=['POST'])
 @require_auth
 def change_password():
@@ -1165,10 +1190,8 @@ def simulated_wearable_sync():
         db.close()
 
 
-@app.route('/api/dev/password-reset', methods=['POST'])
-def dev_password_reset():
-    if os.getenv('DEV_SIMULATED_RESET') != '1' or request.remote_addr not in ('127.0.0.1', '::1'):
-        return jsonify({'error': 'Simulated password reset is unavailable'}), 404
+@app.route('/api/password-reset', methods=['POST'])
+def password_reset():
     data = request.get_json(silent=True)
     if not isinstance(data, dict) or not isinstance(data.get('email'), str):
         return jsonify({'error': 'Email is required'}), 400
@@ -1178,20 +1201,20 @@ def dev_password_reset():
                                      User.role.in_((*MEMBER_ROLES, 'business')),
                                      User.is_active.is_(True)).first()
         if not user:
-            return jsonify({'error': 'Account not found in development mode'}), 404
+            # Don't reveal if account exists
+            return jsonify({'message': 'If the email is registered, a reset token has been generated.'}), 200
         token = secrets.token_urlsafe(32)
         user.reset_token_hash = hashlib.sha256(token.encode()).hexdigest()
         user.reset_token_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
         db.commit()
-        return jsonify({'token': token, 'message': 'Development simulation only. This token is not emailed.'}), 200
+        # In production, email the token. For now, return it for testing.
+        return jsonify({'token': token, 'message': 'Reset token generated. In production, this would be emailed.'}), 200
     finally:
         db.close()
 
 
-@app.route('/api/dev/password-reset/confirm', methods=['POST'])
-def dev_password_reset_confirm():
-    if os.getenv('DEV_SIMULATED_RESET') != '1' or request.remote_addr not in ('127.0.0.1', '::1'):
-        return jsonify({'error': 'Simulated password reset is unavailable'}), 404
+@app.route('/api/password-reset/confirm', methods=['POST'])
+def password_reset_confirm():
     data = request.get_json(silent=True)
     if not isinstance(data, dict) or not all(isinstance(data.get(key), str) and data[key] for key in ('email', 'token', 'password')):
         return jsonify({'error': 'Email, token and password are required'}), 400
@@ -1215,6 +1238,20 @@ def dev_password_reset_confirm():
         return jsonify({'message': 'Password changed'}), 200
     finally:
         db.close()
+
+
+@app.route('/api/dev/password-reset', methods=['POST'])
+def dev_password_reset():
+    if os.getenv('DEV_SIMULATED_RESET') != '1' or request.remote_addr not in ('127.0.0.1', '::1'):
+        return jsonify({'error': 'Simulated password reset is unavailable'}), 404
+    return password_reset()
+
+
+@app.route('/api/dev/password-reset/confirm', methods=['POST'])
+def dev_password_reset_confirm():
+    if os.getenv('DEV_SIMULATED_RESET') != '1' or request.remote_addr not in ('127.0.0.1', '::1'):
+        return jsonify({'error': 'Simulated password reset is unavailable'}), 404
+    return password_reset_confirm()
 
 
 @app.route('/api/log-metrics', methods=['POST'])

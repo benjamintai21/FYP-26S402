@@ -74,9 +74,23 @@ export async function confirmSimulatedReset(email, token, password) {
   });
 }
 
+export async function requestPasswordReset(email) {
+  return apiCall('/password-reset', { method: 'POST', body: JSON.stringify({ email }) });
+}
+
+export async function confirmPasswordReset(email, token, password) {
+  return apiCall('/password-reset/confirm', {
+    method: 'POST', body: JSON.stringify({ email, token, password }),
+  });
+}
+
 export const getPreferences = () => apiCall('/preferences', { method: 'GET' });
 export const savePreferences = (preferences) => apiCall('/preferences', {
   method: 'PUT', body: JSON.stringify(preferences),
+});
+export const getProfile = () => apiCall('/profile', { method: 'GET' });
+export const updateProfile = (profile) => apiCall('/profile', {
+  method: 'PUT', body: JSON.stringify(profile),
 });
 export const getGoals = () => apiCall('/goals', { method: 'GET' });
 export const saveGoal = (goal, id) => apiCall(id ? `/goals/${id}` : '/goals', {

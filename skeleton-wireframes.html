@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Healthy360 — Skeleton Wireframes</title>
+<style>
+  :root {
+    --wf-bg: #FFFFFF;
+    --wf-block: #F3F4F6;
+    --wf-border: #9CA3AF;
+    --wf-text: #111827;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #F9FAFB;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--wf-text);
+  }
+  .wf-page-header { padding: 32px 24px 16px; }
+  .wf-page-header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  .wf-page-header p { margin: 0; font-size: 12px; color: var(--wf-text); }
+  .strip-label { padding: 14px 16px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #4B5563; }
+  .wf-strip { display: flex; gap: 24px; overflow-x: auto; padding: 0 16px 40px; align-items: flex-start; }
+  .wf-frame {
+    flex: 0 0 auto;
+    width: var(--frame-w, 1440px);
+    background: var(--wf-bg);
+    border: 1.5px solid var(--wf-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(17, 24, 39, 0.06);
+    position: relative;
+  }
+  .wf-frame-label {
+    display: block;
+    padding: 8px 12px;
+    font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--wf-text);
+    border-bottom: 1.5px solid var(--wf-border);
+    background: #FAFAFA;
+    white-space: nowrap;
+  }
+  /* ---- primitives ---- */
+  .wf-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1.5px solid var(--wf-border); }
+  .wf-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+  .wf-brand-mark { width: 24px; height: 24px; border: 1.5px solid var(--wf-text); border-radius: 6px; }
+  .wf-badge { font-size: 9px; border: 1px solid var(--wf-border); padding: 2px 6px; border-radius: 4px; letter-spacing: 0.05em; }
+  .wf-navlinks { display: flex; align-items: center; gap: 20px; }
+  .wf-navlink { font-size: 13px; color: var(--wf-text); white-space: nowrap; }
+  .wf-navlink.active { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+  .wf-navcta { font-size: 13px; border: 1.5px solid var(--wf-text); border-radius: 6px; padding: 6px 14px; font-weight: 600; }
+  .wf-main { padding: 0 24px 32px; }
+  .wf-hero { text-align: center; padding: 56px 40px 32px; }
+  .wf-hero h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 10px; }
+  .wf-hero .wf-bar { margin: 0 auto 22px; }
+  .wf-btnrow { display: flex; gap: 12px; justify-content: center; }
+  .wf-btn { display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid var(--wf-border); border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 600; color: var(--wf-text); background: var(--wf-bg); white-space: nowrap; }
+  .wf-btn-primary { background: var(--wf-text); border-color: var(--wf-text); color: #fff; }
+  .wf-btn-sm { padding: 6px 12px; font-size: 12px; }
+  .wf-card { border: 1.5px solid var(--wf-border); border-radius: 10px; background: var(--wf-bg); padding: 18px; margin-bottom: 16px; }
+  .wf-card h2 { margin: 0 0 10px; font-size: 16px; font-weight: 700; }
+  .wf-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+  .wf-card h4 { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
+  .wf-cardhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .wf-bar { height: 8px; background: var(--wf-block); border-radius: 4px; margin: 6px 0; }
+  .wf-bar-sm { height: 6px; }
+  .wf-label { font-size: 12px; color: var(--wf-text); margin: 4px 0; }
+  .wf-sub { font-size: 11px; color: #6B7280; }
+  .wf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .wf-featuregrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .wf-input { height: 34px; border: 1.5px solid var(--wf-border); border-radius: 6px; background: var(--wf-bg); }
+  .wf-select { display: flex; align-items: center; padding: 0 10px; }
+  .wf-textarea { height: 72px; border: 1.5px solid var(--wf-border); border-radius: 6px; background: var(--wf-bg); }
+  .wf-checkbox { width: 16px; height: 16px; border: 1.5px solid var(--wf-border); border-radius: 4px; display: inline-block; vertical-align: middle; }
+  .wf-formgroup { margin-bottom: 14px; }
+  .wf-slider { height: 4px; background: var(--wf-block); border-radius: 2px; position: relative; margin: 10px 0 2px; }
+  .wf-slider-fill { position: absolute; left: 0; top: 0; height: 100%; width: 55%; background: var(--wf-border); border-radius: 2px; }
+  .wf-slider-thumb { position: absolute; left: 55%; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--wf-text); transform: translate(-50%, -50%); }
+  .wf-ph { display: flex; align-items: center; justify-content: center; border: 1.5px dashed var(--wf-border); border-radius: 8px; background: var(--wf-block); color: var(--wf-text); font-family: ui-monospace, Menlo, monospace; font-size: 12px; text-align: center; padding: 12px; }
+  .wf-chips { display: flex; gap: 8px; }
+  .wf-chip { border: 1.5px solid var(--wf-border); border-radius: 14px; padding: 4px 12px; font-size: 11px; }
+  .wf-chip-on { background: var(--wf-text); color: #fff; border-color: var(--wf-text); }
+  .wf-likert { display: flex; gap: 6px; }
+  .wf-likert .wf-chip { width: 30px; text-align: center; }
+  .wf-row { display: flex; align-items: center; gap: 10px; }
+  .wf-authwrap { display: flex; justify-content: center; padding: 48px 24px; }
+  .wf-authcard { width: 420px; border: 1.5px solid var(--wf-border); border-radius: 14px; background: var(--wf-bg); padding: 28px; }
+  .wf-authbrand { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 22px; }
+  .wf-eyebrow { font-size: 10px; letter-spacing: 0.12em; color: var(--wf-text); margin-bottom: 6px; }
+  .wf-consent { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0; }
+  .wf-divider { border-top: 1.5px solid var(--wf-border); margin: 16px 0; }
+  .wf-footer { border-top: 1.5px solid var(--wf-border); padding: 16px 24px; font-size: 11px; color: var(--wf-text); text-align: center; }
+  .wf-listitem { padding: 10px 0; border-bottom: 1px solid var(--wf-block); }
+  .wf-listitem:last-child { border-bottom: none; }
+  .wf-ol { margin: 6px 0 0; padding-left: 20px; font-size: 12px; }
+
+  /* Mobile overrides - Capacitor app style */
+  .wf-mobile .wf-frame {
+    position: relative;
+    overflow-y: auto;
+    max-height: 844px; /* iPhone 14 height */
+    padding-bottom: 80px; /* space for fixed bottom tab bar */
+  }
+  .wf-mobile .wf-nav .wf-navlinks { display: none; }
+  .wf-mobile .wf-nav { justify-content: space-between; }
+  .wf-mobile .wf-main { padding: 0 16px 24px; }
+  .wf-mobile .wf-hero { padding: 32px 20px 20px; }
+  .wf-mobile .wf-grid { grid-template-columns: 1fr; }
+  .wf-mobile .wf-featuregrid { grid-template-columns: 1fr; }
+  .wf-mobile .wf-authcard { width: 100%; }
+  .wf-mobile .wf-frame-label { white-space: normal; }
+
+  /* Mobile bottom tab bar (Capacitor style) - absolute within each frame */
+  .wf-mobile-tabbar {
+    display: none;
+  }
+  .wf-mobile .wf-mobile-tabbar {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    border-top: 1.5px solid var(--wf-border);
+    padding: 8px 4px 16px; /* extra bottom for safe area */
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 -8px 28px rgba(17, 24, 39, 0.06);
+    backdrop-filter: blur(18px);
+  }
+  .wf-mobile-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    color: #9CA3AF;
+    text-decoration: none;
+    padding: 2px 8px;
+    border-radius: 10px;
+    min-width: 56px;
+  }
+  .wf-mobile-tab.active { color: var(--wf-text); font-weight: 700; }
+  .wf-mobile-tab-icon { width: 24px; height: 24px; border: 1.5px solid var(--wf-border); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .wf-mobile-tab.active .wf-mobile-tab-icon { border-color: var(--wf-text); background: #F3F4F6; }
+</style>
+</head>
+<body>
+<div class="wf-page-header">
+  <h1>Healthy360 — Low-Fidelity Skeleton Wireframes</h1>
+  <p>Monochrome grayscale structural mockups. All charts replaced with labeled placeholders; data replaced with gray text bars; navigation, forms and card structure preserved.</p>
+</div>
+
+<h2 class="strip-label">Desktop — 1440px</h2>
+<div class="wf-strip" id="desktop-strip"></div>
+
+<h2 class="strip-label">Mobile — 390px (Capacitor App)</h2>
+<div class="wf-strip" id="mobile-strip"></div>
+
+<script>
+/* ---------- primitives ---------- */
+const bar = (w, extra='') => `<div class="wf-bar ${extra}" style="width:${w}"></div>`;
+const sub = (t) => `<div class="wf-sub">${t}</div>`;
+const label = (t) => `<div class="wf-label">${t}</div>`;
+const btn = (t, primary=false, sm=false) => `<div class="wf-btn ${primary?'wf-btn-primary':''} ${sm?'wf-btn-sm':''}">${t}</div>`;
+const card = (inner, extra='') => `<div class="wf-card ${extra}">${inner}</div>`;
+const ph = (t, h=120) => `<div class="wf-ph" style="height:${h}px">${t}</div>`;
+const head = (h2, subText='') => `<div class="wf-cardhead"><h2>${h2}</h2>${subText?`<span class="wf-sub">${subText}</span>`:''}</div>`;
+const input = (t, w='100%') => `<div class="wf-formgroup"><div class="wf-label">${t}</div><div class="wf-input" style="width:${w}"></div></div>`;
+const select = (t) => `<div class="wf-formgroup"><div class="wf-label">${t}</div><div class="wf-input wf-select"><span class="wf-label">▾</span></div></div>`;
+const textarea = (t) => `<div class="wf-formgroup"><div class="wf-label">${t}</div><div class="wf-textarea"></div></div>`;
+const checkbox = (t) => `<div class="wf-consent"><span class="wf-checkbox"></span><span class="wf-label">${t}</span></div>`;
+const slider = (t, v) => `<div class="wf-formgroup"><div class="wf-label">${t}: <strong>${v}</strong></div><div class="wf-slider"><div class="wf-slider-fill"></div><div class="wf-slider-thumb"></div></div></div>`;
+const pageheader = (t, subPct) => `<header class="wf-pageheader" style="padding-left:0;padding-top:0"><h1>${t}</h1>${bar(subPct,'wf-bar-sm')}</header>`;
+
+/* ---------- desktop navbar ---------- */
+function desktopNav(kind) {
+  const links = {
+    public: ['Home','About','Discover','Log in'],
+    member: ['Today','Check-in','What-If','Goals','Premium','About','Discover','Profile','Log out'],
+    business: ['Business portal','Discover','About','Profile','Log out'],
+  }[kind];
+  const cta = kind === 'public' ? `<div class="wf-navcta">Get started</div>` : '';
+  const items = links.map((l,i) => `<span class="wf-navlink ${i===0?'active':''}">${l}</span>`).join('');
+  return `<div class="wf-nav"><div class="wf-brand"><span class="wf-brand-mark"></span><span>Healthy360</span><span class="wf-badge">WELLNESS</span></div><div class="wf-navlinks">${items}${cta}</div></div>`;
+}
+
+/* ---------- mobile navbar (top) - brand + action only ---------- */
+function mobileTopNav(kind) {
+  const action = kind === 'public'
+    ? `<a href="/register" class="wf-navcta" style="padding:6px 12px;font-size:12px">Join free</a>`
+    : `<button class="wf-navcta" style="padding:6px 12px;font-size:12px">Log out</button>`;
+  return `<div class="wf-nav"><div class="wf-brand"><span class="wf-brand-mark"></span><span>Healthy360</span><span class="wf-badge">WELLNESS</span></div><div class="wf-navlinks" style="gap:12px">${action}</div></div>`;
+}
+
+/* ---------- mobile bottom tab bar (fixed) ---------- */
+function mobileTabBar(kind, currentPath) {
+  const tabsMap = {
+    public: [
+      { to: '/', label: 'Home', icon: '🏠' },
+      { to: '/about', label: 'About', icon: 'ℹ️' },
+      { to: '/login', label: 'Log in', icon: '👤' },
+      { to: '/register', label: 'Sign up', icon: '➕' },
+    ],
+    member: [
+      { to: '/dashboard', label: 'Today', icon: '🏠' },
+      { to: '/log', label: 'Check-in', icon: '📊' },
+      { to: '/explorer', label: 'What-If', icon: '🎛️' },
+      { to: '/goals', label: 'Goals', icon: '🎯' },
+      { to: '/marketplace', label: 'Discover', icon: '🏪' },
+      { to: '/about', label: 'About', icon: 'ℹ️' },
+      { to: '/premium', label: 'Premium', icon: '⭐' },
+      { to: '/profile', label: 'Profile', icon: '👤' },
+    ],
+    business: [
+      { to: '/business', label: 'Portal', icon: '🏢' },
+      { to: '/marketplace', label: 'Discover', icon: '🏪' },
+      { to: '/about', label: 'About', icon: 'ℹ️' },
+      { to: '/profile', label: 'Profile', icon: '👤' },
+    ],
+  };
+  const tabs = tabsMap[kind] || tabsMap.public;
+  const items = tabs.map(t => {
+    const isActive = currentPath === t.to || (t.to !== '/' && currentPath.startsWith(t.to));
+    return `<a href="${t.to}" class="wf-mobile-tab ${isActive?'active':''}" data-path="${t.to}"><span class="wf-mobile-tab-icon">${t.icon}</span><span>${t.label}</span></a>`;
+  }).join('');
+  return `<nav class="wf-mobile-tabbar" aria-label="Main navigation">${items}</nav>`;
+}
+
+const footer = `<div class="wf-footer">Healthy360 • Non-clinical lifestyle guidance only • Not medical advice</div>`;
+
+function frameDesktop(kind, inner) {
+  return `${desktopNav(kind)}<div class="wf-main">${inner}</div>${footer}`;
+}
+
+function frameMobile(kind, inner, currentPath) {
+  const authPages = ['/login', '/register', '/onboarding', '/dev-reset'];
+  const showTabBar = !authPages.includes(currentPath);
+  return `${mobileTopNav(kind)}<div class="wf-main">${inner}</div>${showTabBar ? mobileTabBar(kind, currentPath) : ''}`;
+}
+
+/* ---------- shared page fragments ---------- */
+function shapCard() {
+  return card(head('Biometric Drivers (SHAP Attribution)','Relative feature weights driving today\'s decision') + ph('[SHAP Attribution Chart Placeholder]', 150));
+}
+function trendsCard() {
+  return card(`<div class="wf-cardhead"><div><h3>Metric trends</h3><span class="wf-sub">Your recent check-ins</span></div><div class="wf-chips"><span class="wf-chip wf-chip-on">7 days</span><span class="wf-chip">30 days</span></div></div>` + ph('[7-Day Trend Line Placeholder]', 160));
+}
+function metricForm(title, subtitle, submit) {
+  return card(head(title, subtitle)
+    + slider('Sleep Duration','6.5 hrs')
+    + slider('Resting Heart Rate','72 bpm')
+    + slider('Daily Step Count','7,500')
+    + slider('Perceived Fatigue (1–10)','5')
+    + `<div>${btn(submit,true)}</div>`);
+}
+function recCard() {
+  return card(`<span class="wf-badge" style="font-size:10px;margin-bottom:8px;display:inline-block">Today's Focus</span>
+    <div class="wf-label" style="font-size:16px;font-weight:800">[Recommendation Headline]</div>
+    <div class="wf-row" style="align-items:flex-start;margin-top:8px"><strong class="wf-label">Why this plan?</strong><div style="flex:1">${bar('100%')}${bar('88%')}</div></div>
+    <div class="wf-sub" style="margin-top:10px">Non-Clinical Lifestyle Guidance • Based on daily physiological recovery variance</div>`);
+}
+function whatifCard() {
+  return card(`<span class="wf-badge" style="font-size:10px;display:inline-block;margin-bottom:6px">Actionable Recourse</span>
+    <h4>"What-If" Explorer</h4>${bar('100%')}${bar('74%')}`);
+}
+function likert(labelText, value) {
+  return `<div class="wf-formgroup"><div class="wf-label">${labelText}</div><div class="wf-likert">${[1,2,3,4,5].map(n=>`<span class="wf-chip ${n===value?'wf-chip-on':''}">${n}</span>`).join('')}</div></div>`;
+}
+function authCard(title, eyebrow, fields, submitLabel, trust, switchText) {
+  return `<div class="wf-authwrap"><div class="wf-authcard">
+    <div class="wf-authbrand"><span class="wf-brand-mark"></span><span>Healthy360</span></div>
+    <div class="wf-eyebrow">${eyebrow}</div>
+    <h1 style="font-size:24px;margin:0 0 4px">${title}</h1>
+    <div class="wf-sub" style="margin-bottom:18px">${sub('')}</div>
+    ${fields}
+    <div style="margin-top:16px">${btn(submitLabel,true)}</div>
+    <div class="wf-divider"></div>
+    <div class="wf-sub">${trust}</div>
+    <div class="wf-sub" style="margin-top:12px">${switchText}</div>
+  </div></div>`;
+}
+
+/* ---------- pages ---------- */
+const PAGES = [];
+
+/* 1. HomePage */
+PAGES.push({ name:'HomePage — /', nav:'public', path:'/', wf: `
+  <div class="wf-hero">
+    <h1>Health guidance you can actually understand</h1>
+    ${bar('46%')}
+    <div class="wf-btnrow"><div class="wf-btn wf-btn-primary">Get started</div><div class="wf-btn">Log in</div></div>
+  </div>
+  <div class="wf-featuregrid">
+    ${['Personalized Pacing','Explainable by Design','What-If Recourse','Fair and Private'].map(t=>card(`<h3>${t}</h3>${bar('100%')}${bar('80%')}`)).join('')}
+  </div>
+  ${card(`<h2>Public feedback</h2><div class="wf-sub">Feedback is shared by other real users</div>
+    <div class="wf-listitem"><div class="wf-label">[Feedback Comment]</div>${bar('30%','wf-bar-sm')}</div>
+    <div class="wf-listitem"><div class="wf-label">[Feedback Comment]</div>${bar('24%','wf-bar-sm')}</div>`)}
+`});
+
+/* 2. AboutPage */
+PAGES.push({ name:'AboutPage — /about', nav:'public', path:'/about', wf: `
+  ${pageheader('About Healthy360','56%')}
+  <div style="max-width:820px">${card(`
+    <h3>The problem</h3>${bar('100%')}${bar('92%')}
+    <h3>How it works</h3>
+    <div class="wf-label">• Local feature attribution</div>
+    <div class="wf-label">• Plain-English rationale</div>
+    <div class="wf-label">• Counterfactual recourse</div>
+    <div class="wf-label">• Fairness auditing</div>
+    <h3>Scope and privacy</h3>${bar('100%')}${bar('96%')}${bar('70%')}`)}</div>
+`});
+
+/* 3. LogInPage */
+PAGES.push({ name:'LogInPage — /login', nav:'public', path:'/login', wf: authCard('Welcome back','YOUR WELLNESS, IN FOCUS',
+  select('Sign in as') + input('Email address') + input('Password'),
+  'Continue','Your health data stays private','New to Healthy360? Create an account • Development password reset') });
+
+/* 4. RegisterPage */
+PAGES.push({ name:'RegisterPage — /register', nav:'public', path:'/register', wf: authCard('Create your account','A FRESH START',
+  select('Account type') + input('Your name') + input('Email address') + input('Password') + checkbox('I consent to Healthy360 collecting and processing my lifestyle data under the PDPA.'),
+  'Create account','Private by design. Non-clinical guidance.','Already have an account? Sign in') });
+
+/* 5. DevResetPage */
+PAGES.push({ name:'DevResetPage — /dev-reset', nav:'public', path:'/dev-reset', wf: `
+  ${pageheader('Development password reset','64%')}
+  <div style="max-width:560px">${card(`
+    <div class="wf-formgroup"><div class="wf-label">Account email</div><div class="wf-input"></div></div>
+    <div>${btn('Generate simulated token',true)}</div>
+    <div class="wf-divider"></div>
+    <div class="wf-formgroup"><div class="wf-label">Development token</div><div class="wf-input"></div></div>
+    <div class="wf-formgroup"><div class="wf-label">New password</div><div class="wf-input"></div></div>
+    <div>${btn('Reset password',true)}</div>`)}</div>
+`});
+
+/* 6. OnboardingPage */
+PAGES.push({ name:'OnboardingPage — /onboarding', nav:'member', path:'/onboarding', wf: `
+  ${pageheader('Set up your baseline','72%')}
+  <div class="wf-grid" style="grid-template-columns:1fr;max-width:560px">
+    ${card(head('About you') + select('Age bracket') + select('Typical activity level'))}
+    ${metricForm('Your typical day','These become your personal baselines','Save baseline and continue')}
+  </div>
+`});
+
+/* 7. Dashboard */
+PAGES.push({ name:'Dashboard — /dashboard', nav:'member', path:'/dashboard', wf: `
+  ${pageheader('Hi [Member Name]','58%')}
+  <div class="wf-grid">
+    <div>
+      ${recCard()}
+      ${shapCard()}
+      ${whatifCard()}
+      <div>${btn('Open the What-If Explorer')}</div>
+    </div>
+    <div>
+      ${trendsCard()}
+      ${card(`
+        ${head('Feedback','Helps us evaluate the explanations')}
+        <div class="wf-formgroup"><div class="wf-label">Did you follow today's plan?</div><div class="wf-chips"><span class="wf-chip">Done</span><span class="wf-chip">Skipped</span></div></div>
+        ${likert('The explanation was clear (1–5)',4)}
+        ${likert('I trust this recommendation (1–5)',3)}
+        ${textarea('Comment (optional)')}
+        ${checkbox('Share this feedback publicly without my name. Do not include personal information.')}
+        <div>${btn('Submit feedback')}</div>`)}
+    </div>
+  </div>
+`});
+
+/* 8. LoggingPage */
+PAGES.push({ name:'LoggingPage — /log', nav:'member', path:'/log', wf: `
+  ${pageheader('Daily check-in','62%')}
+  <div style="max-width:560px">
+    ${metricForm('Daily Health Check-In','Record your daily biometric signals','Generate Personalized Plan')}
+    ${card(head('Wearable sync simulation','Import sample sleep, resting heart rate and steps. No device is connected.') + `<div>${btn('Import sample wearable data')}</div>`)}
+    ${card(head('Activity Log','Your recent check-ins') + bar('100%') + bar('90%'))}
+  </div>
+`});
+
+/* 9. ExplorerPage */
+PAGES.push({ name:'ExplorerPage — /explorer', nav:'member', path:'/explorer', wf: `
+  ${pageheader('What-If Explorer','58%')}
+  <div class="wf-grid">
+    <div>
+      ${card(head('Scenario','Drag a slider') + slider('Sleep Duration','7.5 hrs') + slider('Resting Heart Rate','70 bpm') + slider('Daily Step Count','8,000') + slider('Perceived Fatigue (1–10)','4'))}
+    </div>
+    <div>
+      ${recCard()}
+      ${shapCard()}
+      ${whatifCard()}
+      <div style="margin:12px 0">${btn('Add scenario to comparison (0/2)')}</div>
+      ${card(head('Scenario comparison') + `<div class="wf-listitem"><div class="wf-label">[Recommendation Headline]</div>${bar('90%')}${bar('70%')}<div style="margin-top:6px">${btn('Remove',false,true)}</div></div>`)}
+    </div>
+  </div>
+`});
+
+/* 10. GoalsPage */
+PAGES.push({ name:'GoalsPage — /goals', nav:'member', path:'/goals', wf: `
+  ${pageheader('Goals and preferences','58%')}
+  <div class="wf-grid">
+    <div>
+      ${card(`<h2>Create a goal</h2>
+        ${input('Title')}${select('Category')}${input('Target')}${input('Current progress')}${input('Unit')}${input('Deadline (optional)')}${select('Status')}
+        <div>${btn('Create goal',true)}</div>`)}
+      ${card(`<h2>Your goals</h2>
+        <div class="wf-listitem"><div class="wf-label">[Goal Title]</div>${bar('50%','wf-bar-sm')}<div class="wf-row" style="margin-top:6px">${btn('Edit',false,true)}${btn('Delete',false,true)}</div></div>`)}
+    </div>
+    <div>
+      ${card(`<h2>Preferences</h2>
+        ${input('Available minutes per day')}${input('Workout preferences (comma-separated)')}${input('Dietary preferences and restrictions (comma-separated)')}
+        <div>${btn('Save preferences',true)}</div>`)}
+    </div>
+  </div>
+`});
+
+/* 11. SubscriptionPage */
+PAGES.push({ name:'SubscriptionPage — /subscription', nav:'member', path:'/subscription', wf: `
+  ${pageheader('Test subscription','56%')}
+  <div style="max-width:560px">${card(`
+    <h2>[Subscription Plan]</h2>
+    <div class="wf-label">Reference price: [currency] [price] per month. No charge in test mode.</div>
+    <div class="wf-label">Status: [status]</div>
+    <div class="wf-label">Access until: [date]</div>
+    <div class="wf-row" style="margin-top:14px">${btn('Cancel future renewal')}${btn('Renew for 30 days')}</div>`)}</div>
+`});
+
+/* 12. PremiumPage */
+PAGES.push({ name:'PremiumPage — /premium', nav:'member', path:'/premium', wf: `
+  ${pageheader('Premium tools','54%')}
+  <div class="wf-grid">
+    <div>
+      ${card(`<h2>Generate ideas</h2>${bar('100%')}${bar('88%')}<div class="wf-row" style="margin-top:12px">${btn('Generate workout ideas')}${btn('Generate meal ideas')}</div>`)}
+      ${card(`<h3>[Idea Title]</h3>${bar('100%')}${bar('92%')}${bar('60%')}`)}
+    </div>
+    <div>
+      ${card(`<h2>Goal progress suggestions</h2><div class="wf-label">[Goal]: [percent]%</div>${bar('100%')}${bar('84%')}`)}
+      ${card(`<h2>Approved educational content</h2><h3>[Article Title]</h3>${bar('100%')}${bar('78%')}`)}
+    </div>
+  </div>
+`});
+
+/* 13. MarketplacePage */
+PAGES.push({ name:'MarketplacePage — /discover', nav:'member', path:'/marketplace', wf: `
+  ${pageheader('Discover','52%')}
+  ${['Services','Events','Posts'].map((sec,i)=>card(`<h2>${sec}</h2>
+    <div class="wf-listitem"><div class="wf-label">[${sec.slice(0,-1)} Title]</div><span class="wf-sub">By [Business]</span>${bar('88%')}<div style="margin-top:6px">${btn('Reserve',false,true)}</div></div>`)).join('')}
+  ${card(`<h2>Step challenges</h2><span class="wf-sub">Joining shares your pseudonymous score publicly.</span>
+    <div class="wf-listitem"><div class="wf-label">[Challenge Title]</div>${bar('60%','wf-bar-sm')}<div class="wf-row" style="margin-top:6px">${btn('View leaderboard',false,true)}${btn('Join',false,true)}${btn('Leave',false,true)}</div></div>`)}
+  ${card(`<h2>Opt-in business analytics</h2><span class="wf-sub">Results are suppressed below five contributors.</span>
+    <div class="wf-listitem"><div class="wf-label">[Business]: [Cohort]</div><div class="wf-row" style="margin-top:6px">${btn('Join',false,true)}${btn('Leave',false,true)}</div></div>`)}
+`});
+
+/* 14. BusinessPage */
+PAGES.push({ name:'BusinessPage — /business', nav:'business', path:'/business', wf: `
+  ${pageheader('Business portal','60%')}
+  ${select('Manage')}
+  <div class="wf-grid">
+    <div>
+      ${card(`<h2>Create service</h2>
+        ${input('Title')}${select('Category')}${input('Price')}${input('Schedule')}${textarea('Description')}
+        <div>${btn('Publish',true)}</div>`)}
+    </div>
+    <div>
+      ${card(`<h2>Your services</h2>
+        <div class="wf-listitem"><div class="wf-label">[Service Title]</div>${bar('55%','wf-bar-sm')}<div class="wf-row" style="margin-top:6px">${btn('Edit',false,true)}${btn('Remove',false,true)}</div></div>`)}
+    </div>
+  </div>
+  <div class="wf-grid">
+    <div>
+      ${card(`<h2>Step challenges</h2>${bar('100%','wf-bar-sm')}
+        ${input('Challenge title')}${input('Step target')}${input('Start date')}${input('End date')}
+        <div>${btn('Create challenge',true)}</div>`)}
+    </div>
+    <div>
+      ${card(`<h2>Opt-in activity analytics</h2>${bar('100%','wf-bar-sm')}${bar('78%','wf-bar-sm')}<div class="wf-row" style="margin-top:10px">${btn('Enable cohort')}${btn('View aggregate trends')}</div>`)}
+    </div>
+  </div>
+`});
+
+/* 15. ProfilePage */
+PAGES.push({ name:'ProfilePage — /profile', nav:'member', path:'/profile', wf: `
+  ${pageheader('Your profile','34%')}
+  <div style="max-width:560px">
+    ${card(`<h2>Account details</h2>
+      <div class="wf-label"><strong>Name:</strong> [Member Name]</div>
+      <div class="wf-label"><strong>Email:</strong> [email]</div>
+      <div class="wf-label"><strong>Account:</strong> [role]</div>
+      <div class="wf-label" style="color:#6B7280;margin-top:8px">Update lifestyle baseline • View test subscription</div>`)}
+    ${card(`<h2>Change password</h2>
+      ${input('Current password')}${input('New password')}
+      <div>${btn('Change password',true)}</div>`)}
+  </div>
+`});
+
+/* ---------- render ---------- */
+const strip = (id, width, mobile) => {
+  const el = document.getElementById(id);
+  el.style.setProperty('--frame-w', width + 'px');
+  el.innerHTML = PAGES.map(p => `
+    <section class="wf-frame ${mobile?'wf-mobile':''}" style="width:${width}px">
+      <span class="wf-frame-label">${p.name} · ${width}px</span>
+      <div style="min-height:340px">${mobile ? frameMobile(p.nav, p.wf, p.path) : frameDesktop(p.nav, p.wf)}</div>
+    </section>`).join('');
+};
+strip('desktop-strip', 1440, false);
+strip('mobile-strip', 390, true);
+</script>
+</body>
+</html>

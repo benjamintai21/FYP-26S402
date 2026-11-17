@@ -1,10 +1,16 @@
-As an Unregistered User, I want to register an account, so that I can access the platform’s features.
-As an Unregistered User, I want to view the app’s features, so that I can understand the platform’s functionality before registering.
-As an Unregistered User, I want to view public feedback, so that I can understand other users’ experiences with the platform.
+As an Unregistered User, I want to register an account, so that I can access the platform's features.
+As an Unregistered User, I want to view the app's features, so that I can understand the platform's functionality before registering.
+As an Unregistered User, I want to view public feedback, so that I can understand other users' experiences with the platform.
 As a Registered User, I want to log in to my account, so that I can access my personalised health and lifestyle features on the platform.
 As a Registered User, I want to log out of my account, so that I can protect my account from unauthorized access.
 As a Registered User, I want to view my profile, so that I can check my personal information.
 As a Registered User, I want to change my password, so that I can maintain my account security.
+As a Registered User, I want to reset my password via email, so that I can regain access if I forget my login credentials.
+As a Registered User, I want to edit my profile display name, so that I can personalize how my name appears on the platform.
+As a Registered User, I want to complete an onboarding flow with my lifestyle baseline, so that the platform can provide personalized recommendations from the start.
+As a Registered User, I want to submit feedback on AI recommendations, so that I can help improve the platform's explanations.
+As a Registered User, I want to discover and reserve marketplace services and events, so that I can find fitness offerings that match my interests.
+As a Registered User, I want to participate in step challenges, so that I can stay motivated and engage with the community.
 As a Registered User, I want to input my health data, so that the platform can provide recommendations relevant to my needs.
 As a Registered User, I want to log my daily activities and habits, so that I can track my lifestyle patterns.
 As a Registered User, I want to synchronise my wearable device data, so that my activity information can be updated automatically.
@@ -33,7 +39,7 @@ As a System Admin, I want to reset my password, so that I can regain access if I
 As a System Admin, I want to view and search user accounts, so that I can locate specific users when necessary.
 As a System Admin, I want to view user account details, so that I can review account information when handling issues.
 As a System Admin, I want to view user feedback, so that I can identify issues and areas for improvement.
-As a System Admin, I want to review feedback about AI recommendations, so that I can assess whether the recommendations meet users’ needs.
+As a System Admin, I want to review feedback about AI recommendations, so that I can assess whether the recommendations meet users' needs.
 As a System Admin, I want to approve or reject expert content, so that only suitable content is published on the platform.
 As a System Admin, I want to manage subscription plan details, so that users can view the correct pricing and benefits.
 As a System Admin, I want to view system error logs, so that I can investigate and resolve technical problems.

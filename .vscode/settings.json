@@ -2,5 +2,6 @@
     "python-envs.defaultEnvManager": "ms-python.python:system",
     "java.configuration.updateBuildConfiguration": "disabled",
     "java.import.gradle.enabled": false,
-    "gradle.autoDetect": "off"
+    "gradle.autoDetect": "off",
+    "python.terminal.useEnvFile": true
 }

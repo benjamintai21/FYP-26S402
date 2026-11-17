@@ -73,6 +73,7 @@ export default function LogInPage() {
         </form>
         <div className="auth-trust"><Icon name="lock" size={15} /> Your health data stays private</div>
         <p className="auth-switch">New to Healthy360? <Link to="/register">Create an account</Link></p>
+        <p className="auth-switch"><Link to="/forgot-password">Forgot password?</Link></p>
         <p className="auth-switch"><Link to="/dev-reset">Development password reset</Link></p>
       </section>
     </main>
