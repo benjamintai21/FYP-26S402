@@ -1,3 +1,5 @@
+import csv
+import io
 import logging
 import hashlib
 import hmac
@@ -8,10 +10,14 @@ from functools import wraps
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
 from ml.service import InvalidMetricError, RecommendationService
 from database import init_db, SessionLocal
@@ -1059,6 +1065,168 @@ def business_analytics():
                 trend.append({'date': log_date, 'contributors': len(values), 'averageSteps': round(sum(values) / len(values), 1)})
         return jsonify({'metrics': metrics, 'stepsTrend': trend,
                         'note': 'Opt-in aggregates only; each displayed value has at least five contributors. Simulated data is excluded. Thresholding alone does not guarantee anonymity.'}), 200
+    finally:
+        db.close()
+
+
+@app.route('/api/business/analytics/export/csv', methods=['GET'])
+@require_auth
+@require_roles('business')
+def business_analytics_export_csv():
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(user_id=request.user_id).one()
+        cohort = db.query(Cohort).filter_by(business_user_id=user.id).order_by(Cohort.cohort_id).first()
+        if not cohort:
+            return jsonify({'error': 'Enable an opt-in cohort first'}), 404
+        today = date.today()
+        cutoff = (today - timedelta(days=29)).isoformat()
+        rows = db.query(DailyLog).join(CohortMember, DailyLog.pseudonym_token == CohortMember.pseudonym_token).filter(
+            CohortMember.cohort_id == cohort.cohort_id, DailyLog.is_simulated.is_(False),
+            DailyLog.date >= cutoff, DailyLog.date <= today.isoformat(),
+        ).order_by(DailyLog.log_id).all()
+        daily = {}
+        for log in rows:
+            key = (log.pseudonym_token, log.date)
+            values = daily.setdefault(key, {})
+            if log.steps is not None:
+                values['steps'] = log.steps
+            if log.sleep is not None:
+                values['sleep'] = log.sleep
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Cohort Analytics Export', f'Generated: {datetime.now().isoformat()}', 'Non-clinical lifestyle guidance only - Not medical advice'])
+        writer.writerow([])
+        writer.writerow(['Metric', 'Contributors', 'Average', 'Status'])
+        for field in ('steps', 'sleep'):
+            by_member = {}
+            for (token, _), values in daily.items():
+                if field in values:
+                    by_member.setdefault(token, []).append(values[field])
+            if len(by_member) >= 5:
+                averages = [sum(values) / len(values) for values in by_member.values()]
+                avg = round(sum(averages) / len(averages), 1)
+                writer.writerow([field.title(), len(by_member), avg, 'Sufficient contributors'])
+            else:
+                writer.writerow([field.title(), len(by_member), '', 'Suppressed (< 5 contributors)'])
+        writer.writerow([])
+        writer.writerow(['Date', 'Contributors', 'Average Steps', 'Status'])
+        dates = sorted({log_date for _, log_date in daily})
+        for log_date in dates:
+            values = [values['steps'] for (_, day), values in daily.items() if day == log_date and 'steps' in values]
+            if len(values) >= 5:
+                writer.writerow([log_date, len(values), round(sum(values) / len(values), 1), 'Sufficient contributors'])
+            else:
+                writer.writerow([log_date, len(values), '', 'Suppressed (< 5 contributors)'])
+
+        output.seek(0)
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'cohort_analytics_{today.isoformat()}.csv'
+        )
+    finally:
+        db.close()
+
+
+@app.route('/api/business/analytics/export/pdf', methods=['GET'])
+@require_auth
+@require_roles('business')
+def business_analytics_export_pdf():
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(user_id=request.user_id).one()
+        cohort = db.query(Cohort).filter_by(business_user_id=user.id).order_by(Cohort.cohort_id).first()
+        if not cohort:
+            return jsonify({'error': 'Enable an opt-in cohort first'}), 404
+        today = date.today()
+        cutoff = (today - timedelta(days=29)).isoformat()
+        rows = db.query(DailyLog).join(CohortMember, DailyLog.pseudonym_token == CohortMember.pseudonym_token).filter(
+            CohortMember.cohort_id == cohort.cohort_id, DailyLog.is_simulated.is_(False),
+            DailyLog.date >= cutoff, DailyLog.date <= today.isoformat(),
+        ).order_by(DailyLog.log_id).all()
+        daily = {}
+        for log in rows:
+            key = (log.pseudonym_token, log.date)
+            values = daily.setdefault(key, {})
+            if log.steps is not None:
+                values['steps'] = log.steps
+            if log.sleep is not None:
+                values['sleep'] = log.sleep
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        elements = []
+
+        elements.append(Paragraph('Healthy360 Cohort Analytics Report', styles['Title']))
+        elements.append(Paragraph(f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', styles['Normal']))
+        elements.append(Paragraph('Non-clinical lifestyle guidance only - Not medical advice', styles['Italic']))
+        elements.append(Spacer(1, 12))
+
+        metrics_data = [['Metric', 'Contributors', 'Average', 'Status']]
+        for field in ('steps', 'sleep'):
+            by_member = {}
+            for (token, _), values in daily.items():
+                if field in values:
+                    by_member.setdefault(token, []).append(values[field])
+            if len(by_member) >= 5:
+                averages = [sum(values) / len(values) for values in by_member.values()]
+                avg = round(sum(averages) / len(averages), 1)
+                metrics_data.append([field.title(), str(len(by_member)), str(avg), 'Sufficient contributors'])
+            else:
+                metrics_data.append([field.title(), str(len(by_member)), '', 'Suppressed (< 5 contributors)'])
+
+        metrics_table = Table(metrics_data, colWidths=[120, 100, 100, 180])
+        metrics_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(Paragraph('Aggregate Metrics (30-day window)', styles['Heading2']))
+        elements.append(metrics_table)
+        elements.append(Spacer(1, 12))
+
+        trend_data = [['Date', 'Contributors', 'Average Steps', 'Status']]
+        dates = sorted({log_date for _, log_date in daily})
+        for log_date in dates:
+            values = [values['steps'] for (_, day), values in daily.items() if day == log_date and 'steps' in values]
+            if len(values) >= 5:
+                trend_data.append([log_date, str(len(values)), str(round(sum(values) / len(values), 1)), 'Sufficient contributors'])
+            else:
+                trend_data.append([log_date, str(len(values)), '', 'Suppressed (< 5 contributors)'])
+
+        trend_table = Table(trend_data, colWidths=[100, 100, 100, 200])
+        trend_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(Paragraph('Daily Step Trend (30-day window)', styles['Heading2']))
+        elements.append(trend_table)
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph('Note: Opt-in aggregates only; each displayed value has at least five contributors. Simulated data is excluded. Thresholding alone does not guarantee anonymity.', styles['Italic']))
+
+        doc.build(elements)
+        buffer.seek(0)
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'cohort_analytics_{today.isoformat()}.pdf'
+        )
     finally:
         db.close()
 

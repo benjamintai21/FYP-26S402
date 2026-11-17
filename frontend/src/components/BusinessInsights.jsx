@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { createChallenge, enableCohort, getBusinessAnalytics, getBusinessChallenges, getBusinessCohort, getLeaderboard } from '../api';
+import { createChallenge, enableCohort, getBusinessAnalytics, getBusinessChallenges, getBusinessCohort, getLeaderboard, exportBusinessAnalyticsCsv, exportBusinessAnalyticsPdf } from '../api';
 
 export default function BusinessInsights() {
   const [challenges, setChallenges] = useState([]);
@@ -41,6 +41,32 @@ export default function BusinessInsights() {
     try { setLeaderboard(await getLeaderboard(id)); }
     catch (err) { setError(err.message); }
   };
+  const exportCsv = async () => {
+    try {
+      const blob = await exportBusinessAnalyticsCsv();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cohort_analytics_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) { setError(err.message); }
+  };
+  const exportPdf = async () => {
+    try {
+      const blob = await exportBusinessAnalyticsPdf();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cohort_analytics_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) { setError(err.message); }
+  };
   return (
     <div className="content-grid">
       <section className="card">
@@ -66,6 +92,10 @@ export default function BusinessInsights() {
         {!cohort ? <button className="btn-outline" type="button" onClick={enable}>Enable cohort</button> : <button className="btn-outline" type="button" onClick={showAnalytics}>View aggregate trends</button>}
         {analytics && <>
           <p>{analytics.note}</p>
+          <div className="form-group">
+            <button type="button" className="btn-outline" onClick={exportCsv}>Export CSV</button>
+            <button type="button" className="btn-outline" onClick={exportPdf}>Export PDF</button>
+          </div>
           {['steps', 'sleep'].map((key) => <p key={key}>{key === 'steps' ? 'Average daily steps' : 'Average sleep hours'}: {analytics.metrics[key] ? `${analytics.metrics[key].average} (${analytics.metrics[key].contributors} contributors)` : 'Not enough contributors'}</p>)}
           <h3>Daily step trend</h3>
           {analytics.stepsTrend.length === 0 && <p>Not enough contributors on any day.</p>}

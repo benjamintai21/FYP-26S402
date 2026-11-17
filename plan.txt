@@ -1,100 +1,69 @@
----
-
 ## Phase 1 & 1.5: Machine Learning & XAI Core *(Completed)*
 
-* **Synthetic Dataset & Model Training (`backend/ml/`):** Generated demographic and lifestyle datasets and trained an `XGBClassifier` (`n_estimators=150`, `max_depth=6`, `learning_rate=0.1`) predicting daily activity tiers.
-* **Explainability & Recourse Pipeline:** Integrated `shap.TreeExplainer` for real-time per-feature attributions, deterministic template-based plain-English rationales (no LLM hallucinations), and counterfactual "What-If" search under the $\le 2.0\text{s}$ latency benchmark.
-
-
-* **Data Fault Tolerance:** Added median baseline imputation and automated unit test verification (`pytest`).
+- [x] **Synthetic Dataset & Model Training (`backend/ml/`):** Generated demographic and lifestyle datasets and trained an `XGBClassifier` (`n_estimators=150`, `max_depth=6`, `learning_rate=0.1`) predicting daily activity tiers.
+- [x] **Explainability & Recourse Pipeline:** Integrated `shap.TreeExplainer` for real-time per-feature attributions, deterministic template-based plain-English rationales (no LLM hallucinations), and counterfactual "What-If" search under the <= 2.0s latency benchmark.
+- [x] **Data Fault Tolerance:** Added median baseline imputation and automated unit test verification (`pytest`).
 
 ---
 
 ## Phase 2: Database Persistence, PDPA Schema & Authentication *(Completed)*
 
-* **Relational Persistence (`backend/database.py`, `schema.sql`):** Configured SQLAlchemy with MySQL 8 (`DATABASE_URL` loaded independently of working directory) and SQLite fallback for isolated `pytest` runs.
-* **Privacy & Account Lifecycle:** Implemented pseudonymized user separation for PDPA compliance, explicit PDPA opt-in consent timestamps, JWT authentication (`Bearer` tokens), login/logout, profile retrieval (`/api/me`), and development-only password reset simulation (`DEV_SIMULATED_RESET=1`).
-
-
+- [x] **Relational Persistence (`backend/database.py`, `schema.sql`):** Configured SQLAlchemy with MySQL 8 (`DATABASE_URL` loaded independently of working directory) and SQLite fallback for isolated `pytest` runs.
+- [x] **Privacy & Account Lifecycle:** Implemented pseudonymized user separation for PDPA compliance, explicit PDPA opt-in consent timestamps, JWT authentication (`Bearer` tokens), login/logout, profile retrieval (`/api/me`), and development-only password reset simulation (`DEV_SIMULATED_RESET=1`).
 
 ---
 
 ## Phase 3: Consumer & Mobile Application *(Completed)*
 
-* **Multi-Page Routing & State:** Implemented `react-router-dom`, `AppContext`, `ProtectedRoute`, `OnboardingPage`, `Dashboard`, `LoggingPage`, `ExplorerPage`, `PremiumPage`, `DevResetPage`, and `HomePage`.
-* **Registered & Premium Consumer Flows:**
-* Daily check-in logging, 7/30-day trend visualizations, interactive SHAP factor bars, and live "What-If" scenario exploration.
-* Goals CRUD, workout/dietary/schedule preferences, simulated wearable data import (excluded from cohort/challenge metrics), adherence logging (`Done`/`Skipped`), and opt-in public feedback.
-* Recovery-aware workout (walking, cycling, yoga) and meal (vegetarian, vegan) plan generators anchored to each member's latest saved recommendation, plus manual subscription testing.
-
-
-* **Cross-Platform Mobile Wrapper (Capacitor):** Configured Android routing (`10.0.2.2:5000` vs. `localhost:5000`), `0.0.0.0` Flask binding, explicit CORS origins, and `@media (max-width: 600px)` responsive breakpoints.
-* **Verification:** Verified with 38 passing tests (`backend/tests/test_account_storage.py`) and targeted frontend lint.
+- [x] **Multi-Page Routing & State:** Implemented `react-router-dom`, `AppContext`, `ProtectedRoute`, `OnboardingPage`, `Dashboard`, `LoggingPage`, `ExplorerPage`, `PremiumPage`, `DevResetPage`, and `HomePage`.
+- [x] **Registered & Premium Consumer Flows:**
+  - [x] Daily check-in logging, 7/30-day trend visualizations, interactive SHAP factor bars, and live "What-If" scenario exploration.
+  - [x] Goals CRUD, workout/dietary/schedule preferences, simulated wearable data import (excluded from cohort/challenge metrics), adherence logging (`Done`/`Skipped`), and opt-in public feedback.
+  - [x] Recovery-aware workout (walking, cycling, yoga) and meal (vegetarian, vegan) plan generators anchored to each member's latest saved recommendation, plus manual subscription testing.
+- [x] **Cross-Platform Mobile Wrapper (Capacitor):** Configured Android routing (`10.0.2.2:5000` vs. `localhost:5000`), `0.0.0.0` Flask binding, explicit CORS origins, and `@media (max-width: 600px)` responsive breakpoints.
+- [x] **Production Password Reset:** Implemented `/api/password-reset` (request token) and `/api/password-reset/confirm` (validate token + set new password) with 15-min expiry, SHA-256 hashed tokens, and no account enumeration. Dev endpoints retained as wrappers.
+- [x] **Profile Management:** Added `/api/profile` GET/PUT endpoint and `ProfileEditPage` for display name editing (registered, premium, business roles).
+- [x] **Verification:** Verified with 38 passing tests (`backend/tests/test_account_storage.py` + `test_recommendation.py`) and successful frontend build.
 
 ---
 
-## Phase 4: Business User Portal & Cohort Analytics *(Next Active Phase)*
+## Phase 4: Business User Portal & Cohort Analytics *(Completed)*
 
 Build the `/business` portal and corresponding Flask routes to fulfill the Business User stories in `backend/database/userstories.txt` (supporting gyms, personal trainers, sponsors, and wellness coordinators):
 
-* **Business Account Access:** Business login, logout, and existing simulated password reset flow.
-
-
-* **Services & Offerings CRUD:** Endpoints and UI forms to publish, edit, and delete training sessions, memberships, and group classes (`GET/POST/PUT/DELETE /api/business/services`).
-
-
-* **Events & Workshops CRUD:** Create, list, update, and cancel fitness events or showcases (`GET/POST/PUT/DELETE /api/business/events`), triggering in-app notifications for schedule changes or cancellations.
-
-
-* **Community Feed Management:** Publish and remove tips, promotions, or announcements (`GET/POST/DELETE /api/business/posts`).
-
-
-* **Leaderboard Challenges:** Create step/activity challenges and display live standings (`POST /api/business/challenges`, `GET /api/business/challenges/<id>/leaderboard`) using random pseudonyms for opted-in members.
-
-
-* **Privacy-Preserving Cohort Analytics:**
-* Display aggregated client performance stats, activity trends, and global cohort SHAP drivers (`GET /api/business/analytics`).
-
-
-* Enforce backend $k$-anonymity suppression whenever distinct opted-in contributors $< 5$, excluding simulated wearable sample logs.
-
-
-* Add CSV and PDF (`reportlab`) summary export stamped with non-clinical disclaimers.
-
-
-
-
+- [x] **Business Account Access:** Business login, logout, and existing simulated password reset flow.
+- [x] **Services & Offerings CRUD:** Endpoints and UI forms to publish, edit, and delete training sessions, memberships, and group classes (`GET/POST/PUT/DELETE /api/business/services`).
+- [x] **Events & Workshops CRUD:** Create, list, update, and cancel fitness events or showcases (`GET/POST/PUT/DELETE /api/business/events`), triggering in-app notifications for schedule changes or cancellations.
+- [x] **Community Feed Management:** Publish and remove tips, promotions, or announcements (`GET/POST/DELETE /api/business/posts`).
+- [x] **Leaderboard Challenges:** Create step/activity challenges and display live standings (`POST /api/business/challenges`, `GET /api/business/challenges/<id>/leaderboard`) using random pseudonyms for opted-in members.
+- [x] **Privacy-Preserving Cohort Analytics:**
+  - [x] Display aggregated client performance stats, activity trends, and global cohort SHAP drivers (`GET /api/business/analytics`).
+  - [x] Enforce backend k-anonymity suppression whenever distinct opted-in contributors < 5, excluding simulated wearable sample logs.
+  - [x] Add CSV and PDF (`reportlab`) summary export stamped with non-clinical disclaimers.
 
 ---
 
-## Phase 5: System Admin Governance, Fairness Auditing & Podman Compose *(Final Phase)*
+## Phase 5: System Admin Governance, Fairness Auditing & Podman Compose *(Next Active Phase)*
 
 Implement the `/admin` governance view and package the entire multi-service stack for deployment:
 
-* **User & Content Governance:**
-* Search and inspect user account details (`GET /api/admin/users`, `GET /api/admin/users/<id>`).
-* Review user feedback and AI recommendation clarity/trust ratings (`GET /api/admin/feedback`).
-* Approve/reject educational article records (`PATCH /api/admin/articles/<id>/status`) and manage subscription plan metadata (`PUT /api/admin/plans`).
-
-
-* **Algorithmic Fairness & Audit Logs:**
-* Integrate `fairlearn` (`GET /api/admin/fairness-audit`) to compute demographic parity difference, disparate impact ratio, and subgroup error rates across age brackets and baseline activity tiers.
-
-
-* Expose inference latency records, median imputation events, and system error logs (`GET /api/admin/logs`).
-
-
-
-
-* **Podman Compose Orchestration (`podman-compose.yml`):**
-* Containerize `db` (`mysql:8.0` initialized with `backend/database/schema.sql` and a persistent volume), `backend` (Flask API on port `5000`), and `frontend` (production React build served via Nginx on port `5173`/`80`).
-
-
+- [ ] **User & Content Governance:**
+  - [ ] Search and inspect user account details (`GET /api/admin/users`, `GET /api/admin/users/<id>`).
+  - [ ] Review user feedback and AI recommendation clarity/trust ratings (`GET /api/admin/feedback`).
+  - [ ] Approve/reject educational article records (`PATCH /api/admin/articles/<id>/status`) and manage subscription plan metadata (`PUT /api/admin/plans`).
+- [ ] **Algorithmic Fairness & Audit Logs:**
+  - [ ] Integrate `fairlearn` (`GET /api/admin/fairness-audit`) to compute demographic parity difference, disparate impact ratio, and subgroup error rates across age brackets and baseline activity tiers.
+  - [ ] Expose inference latency records, median imputation events, and system error logs (`GET /api/admin/logs`).
+- [ ] **Podman Compose Orchestration (`podman-compose.yml`):**
+  - [ ] Containerize `db` (`mysql:8.0` initialized with `backend/database/schema.sql` and a persistent volume), `backend` (Flask API on port `5000`), and `frontend` (production React build served via Nginx on port `5173`/`80`).
 
 ---
 
 ## Immediate Next Steps
 
-1. **Sync Mobile Bundle & Verify Live MySQL:** Run `npm run build && npx cap sync` inside `frontend/` so the Android emulator receives the updated `PremiumPage` and `DevResetPage`, and confirm `backend/.env` connects cleanly to `healthy360_db` in MySQL 8.
-2. **Audit Phase 4 Schema & Endpoints:** Cross-check `backend/database/schema.sql` and `backend/database/userstories.txt` to confirm which tables (`services`, `events`, `posts`, `challenges`) already exist in MySQL and which Flask routes need to be added first.
-3. **Build Business Portal MVP:** Implement the `/api/business/*` endpoints and corresponding React Business Dashboard views (Services, Events, Posts, Leaderboard, and $\ge 5$ opted-in Cohort Analytics), followed by `pytest` coverage and documentation updates ahead of **Submission 3 (12 Dec 2026)** and **Submission 4 (19 Dec 2026)**.
+- [ ] **1. Sync Mobile Bundle & Verify Live MySQL:** Run `npm run build && npx cap sync` inside `frontend/` so the Android emulator receives the updated `BusinessInsights` (with CSV/PDF export buttons), and confirm `backend/.env` connects cleanly to `healthy360_db` in MySQL 8.
+- [ ] **2. Begin Phase 5 - System Admin Governance:** Implement `/api/admin/*` endpoints and React Admin Dashboard views:
+  - User & Content Governance: `GET /api/admin/users`, `GET /api/admin/users/<id>`, `GET /api/admin/feedback`, `PATCH /api/admin/articles/<id>/status`, `PUT /api/admin/plans`
+  - Algorithmic Fairness & Audit Logs: `GET /api/admin/fairness-audit` (fairlearn integration), `GET /api/admin/logs`
+  - Podman Compose Orchestration: `podman-compose.yml` with `db` (mysql:8.0), `backend` (Flask on 5000), `frontend` (Nginx on 5173/80)
+- [ ] **3. Documentation & Verification:** Update test suites, verify 38+ passing backend tests, successful frontend build, and document ahead of **Submission 3 (12 Dec 2026)** and **Submission 4 (19 Dec 2026)**.

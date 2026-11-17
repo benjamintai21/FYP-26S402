@@ -7,13 +7,19 @@ const getToken = () => localStorage.getItem('h360_token');
 
 const apiCall = async (url, options = {}) => {
   const token = getToken();
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const headers = { ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (!options.responseType) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const res = await fetch(`${API_BASE}${url}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  if (options.responseType === 'blob') {
+    return res.blob();
   }
   return res.json();
 };
@@ -123,6 +129,8 @@ export const getCohorts = () => apiCall('/cohorts', { method: 'GET' });
 export const enableCohort = () => apiCall('/business/cohort', { method: 'POST' });
 export const getBusinessCohort = () => apiCall('/business/cohort', { method: 'GET' });
 export const getBusinessAnalytics = () => apiCall('/business/analytics', { method: 'GET' });
+export const exportBusinessAnalyticsCsv = () => apiCall('/business/analytics/export/csv', { method: 'GET', responseType: 'blob' });
+export const exportBusinessAnalyticsPdf = () => apiCall('/business/analytics/export/pdf', { method: 'GET', responseType: 'blob' });
 export const joinCohort = (id) => apiCall(`/cohorts/${id}/participation`, { method: 'POST', body: JSON.stringify({ consent: true }) });
 export const leaveCohort = (id) => apiCall(`/cohorts/${id}/participation`, { method: 'DELETE' });
 export const getActivities = () => apiCall('/activities', { method: 'GET' });
