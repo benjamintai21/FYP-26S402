@@ -24,17 +24,18 @@ export default function SubscriptionPage() {
   };
   return (
     <main className="dashboard-container narrow">
-      <header className="page-header"><h1>Test subscription</h1><p>Manual simulation only. No payment is taken and subscriptions do not renew automatically.</p></header>
+      <header className="page-header"><h1>Subscription</h1><p>Purchase a monthly premium subscription to unlock personalized plans, advanced What-If scenarios, and the expert library.</p></header>
       {error && <div className="alert-error" role="alert">{error}</div>}
       {data && <section className="card">
         <h2>{data.plan}</h2>
-        <p>Reference price: {data.currency} {data.referencePrice} per month. No charge in test mode.</p>
+        <p>Price: {data.currency} {data.referencePrice} per month.</p>
+        <p className="sub-text">{data.benefits && data.benefits.map && data.benefits.map((b, i) => <span key={i}><br/>{b}</span>)}</p>
         {data.subscription ? <>
           <p>Status: {data.subscription.status}</p>
           <p>Access until: {data.subscription.accessUntil}</p>
           {data.subscription.status === 'active' && <button className="btn-outline" type="button" disabled={busy} onClick={() => action('cancel')}>Cancel future renewal</button>}{' '}
           <button className="btn-outline" type="button" disabled={busy} onClick={() => action('renew')}>Renew for 30 days</button>
-        </> : <button className="submit-btn" type="button" disabled={busy} onClick={() => action('start')}>Start test subscription</button>}
+        </> : <button className="submit-btn" type="button" disabled={busy} onClick={() => action('start')}>Purchase subscription</button>}
       </section>}
     </main>
   );

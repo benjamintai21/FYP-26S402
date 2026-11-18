@@ -4,13 +4,19 @@ import { useApp } from '../context/AppContext';
 import Icon from './Icon';
 import { homeForRole, MEMBER_ROLES } from '../roles';
 
-const APP_TABS = [
+const MEMBER_MOBILE_TABS = [
   { to: '/dashboard', label: 'Today', icon: 'home' },
-  { to: '/log', label: 'Check-in', icon: 'activity' },
-  { to: '/explorer', label: 'What-If', icon: 'sliders' },
-  { to: '/goals', label: 'Goals', icon: 'activity' },
-  { to: '/marketplace', label: 'Discover', icon: 'home' },
+  { to: '/marketplace', label: 'Explore', icon: 'compass' },
+  { to: '/log', label: 'Check-in', icon: 'calendar', center: true },
+  { to: '/goals', label: 'Goals', icon: 'target' },
+  { to: '/more', label: 'More', icon: 'grid' },
+];
+
+const PORTAL_MOBILE_TABS = [
+  { to: '/business', label: 'Home', icon: 'home' },
+  { to: '/marketplace', label: 'Explore', icon: 'compass' },
   { to: '/about', label: 'About', icon: 'info' },
+  { to: '/profile', label: 'Profile', icon: 'user' },
 ];
 
 export default function Navbar() {
@@ -22,18 +28,8 @@ export default function Navbar() {
   const showMobileTabs = !['/login', '/register', '/onboarding', '/dev-reset'].includes(pathname);
   const member = user && MEMBER_ROLES.includes(user.role);
   const portalPath = user ? homeForRole(user.role) : '/';
-  const portalLabel = 'Business portal';
-  const tabs = member ? [
-    ...APP_TABS,
-    ...(user.role === 'premium' ? [{ to: '/premium', label: 'Premium', icon: 'activity' }] : []),
-    ...(user.role === 'admin' ? [{ to: '/admin', label: 'Admin', icon: 'activity' }] : []),
-    { to: '/profile', label: 'Profile', icon: 'user' },
-  ] : [
-    { to: portalPath, label: portalLabel, icon: 'home' },
-    { to: '/marketplace', label: 'Discover', icon: 'activity' },
-    { to: '/about', label: 'About', icon: 'info' },
-    { to: '/profile', label: 'Profile', icon: 'user' },
-  ];
+  const portalLabel = user && user.role === 'admin' ? 'Admin portal' : user && user.role === 'business' ? 'Business portal' : 'Your account';
+  const mobileTabs = member ? MEMBER_MOBILE_TABS : PORTAL_MOBILE_TABS;
 
   const handleLogout = async () => {
     setLogoutError('');
@@ -51,7 +47,6 @@ export default function Navbar() {
         <Link to={portalPath} className="nav-brand">
           <span className="brand-mark"><Icon name="activity" size={19} /></span>
           <span className="brand-title">Healthy<span>360</span></span>
-          <span className="brand-badge">WELLNESS</span>
         </Link>
         <ul className="nav-links">
           {user ? (
@@ -62,6 +57,7 @@ export default function Navbar() {
                   <li><NavLink to="/log" className={linkClass}>Check-in</NavLink></li>
                   <li><NavLink to="/explorer" className={linkClass}>What-If</NavLink></li>
                   <li><NavLink to="/goals" className={linkClass}>Goals</NavLink></li>
+                  <li><NavLink to="/marketplace" className={linkClass}>Discover</NavLink></li>
                   {user.role === 'premium' && <li><NavLink to="/premium" className={linkClass}>Premium</NavLink></li>}
                   {user.role === 'admin' && <li><NavLink to="/admin" className={linkClass}>Admin</NavLink></li>}
                 </>
@@ -69,7 +65,6 @@ export default function Navbar() {
                 <li><NavLink to={portalPath} className={linkClass}>{portalLabel}</NavLink></li>
               )}
               <li><NavLink to="/about" className={linkClass}>About</NavLink></li>
-              <li><NavLink to="/marketplace" className={linkClass}>Discover</NavLink></li>
               <li><NavLink to="/profile" className={linkClass}>Profile</NavLink></li>
               <li>
                 <button type="button" className="link-btn" onClick={handleLogout}>
@@ -101,11 +96,11 @@ export default function Navbar() {
 
       {showMobileTabs && (
         <nav className="mobile-tabbar" aria-label="Main navigation">
-          {user ? tabs.map((tab) => (
+          {user ? mobileTabs.map((tab) => (
             <NavLink
               key={tab.to}
               to={tab.to}
-              className={({ isActive }) => `mobile-tab${isActive ? ' active' : ''}`}
+              className={({ isActive }) => `mobile-tab${isActive ? ' active' : ''}${tab.center ? ' mobile-tab-center' : ''}`}
               aria-label={tab.label}
             >
               <span className="mobile-tab-icon"><Icon name={tab.icon} size={21} /></span>

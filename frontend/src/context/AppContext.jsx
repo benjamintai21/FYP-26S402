@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { logMetrics, getTrends, getLatestRecommendation, registerUser, loginUser, logoutUser, getMe, saveOnboarding, syncSampleWearable } from '../api';
+import { logMetrics, getTrends, getLatestRecommendation, registerUser, loginUser, logoutUser, getMe, saveOnboarding, syncSampleWearable, importLogs, importLogsCsv } from '../api';
 import { MEMBER_ROLES } from '../roles';
 
 const AppContext = createContext(null);
@@ -111,6 +111,38 @@ export function AppProvider({ children }) {
     return result;
   };
 
+  const importData = async (logs) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await importLogs(logs);
+      const trends = await getTrends();
+      setHistory(trends.logs || []);
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const importDataCsv = async (csvText) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await importLogsCsv(csvText);
+      const trends = await getTrends();
+      setHistory(trends.logs || []);
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateRecommendationAdherence = (id, adherence) => {
     setLatest((current) => current && current.recommendation_id === id ? { ...current, adherence } : current);
   };
@@ -145,6 +177,8 @@ export function AppProvider({ children }) {
     completeOnboarding,
     refreshUser,
     importSampleWearable,
+    importData,
+    importDataCsv,
     generatePlan,
     updateRecommendationAdherence,
   };

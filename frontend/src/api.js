@@ -70,6 +70,30 @@ export async function syncSampleWearable() {
   return apiCall('/wearable/sync', { method: 'POST' });
 }
 
+export async function importLogs(logs) {
+  return apiCall('/import-logs', {
+    method: 'POST',
+    body: JSON.stringify({ logs }),
+  });
+}
+
+export async function importLogsCsv(csvText) {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/import-logs`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'text/csv',
+    },
+    body: csvText,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function requestSimulatedReset(email) {
   return apiCall('/dev/password-reset', { method: 'POST', body: JSON.stringify({ email }) });
 }
@@ -119,6 +143,9 @@ export const getPremiumPlans = () => apiCall('/premium/plans', { method: 'GET' }
 export const generatePremiumPlan = (type) => apiCall('/premium/plans', { method: 'POST', body: JSON.stringify({ type }) });
 export const getPremiumArticles = () => apiCall('/articles', { method: 'GET' });
 export const getGoalInsights = () => apiCall('/premium/goal-insights', { method: 'GET' });
+export const getProducts = () => apiCall('/products', { method: 'GET' });
+export const purchaseProduct = (productId) => apiCall(`/products/${productId}/purchase`, { method: 'POST' });
+export const getPurchases = () => apiCall('/purchases', { method: 'GET' });
 export const getChallenges = () => apiCall('/challenges', { method: 'GET' });
 export const getBusinessChallenges = () => apiCall('/business/challenges', { method: 'GET' });
 export const createChallenge = (challenge) => apiCall('/business/challenges', { method: 'POST', body: JSON.stringify(challenge) });

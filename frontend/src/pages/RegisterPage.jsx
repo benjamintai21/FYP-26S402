@@ -39,7 +39,6 @@ export default function RegisterPage() {
           <span>Healthy<span>360</span></span>
         </Link>
         <div className="auth-heading">
-          <span className="auth-eyebrow">A FRESH START</span>
           <h1>Create your account</h1>
           <p>Choose a member or business account to get started.</p>
         </div>

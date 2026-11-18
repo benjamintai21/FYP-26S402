@@ -381,7 +381,39 @@ CREATE TABLE fairness_audits (
 ) ENGINE=InnoDB;
 
 -- ============================================================================
--- 7. DEFAULT SEED DATA (SUBSCRIPTION PLANS)
+-- 7. IN-APP PURCHASES (PRODUCTS & PURCHASES)
+-- ============================================================================
+
+CREATE TABLE products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_code VARCHAR(50) NOT NULL UNIQUE,
+    product_type ENUM('meal_plan', 'workout_plan', 'article', 'subscription') NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT NOT NULL,
+    content_json JSON NOT NULL,
+    price_cents INT NOT NULL,
+    currency CHAR(3) NOT NULL DEFAULT 'SGD',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    premium_only BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE purchases (
+    purchase_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
+    amount_cents INT NOT NULL,
+    currency CHAR(3) NOT NULL DEFAULT 'SGD',
+    status ENUM('completed', 'refunded') NOT NULL DEFAULT 'completed',
+    purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_purchase_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_purchase_product FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE,
+    INDEX idx_purchases_user (user_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 8. DEFAULT SEED DATA (SUBSCRIPTION PLANS)
 -- ============================================================================
 
 INSERT INTO subscription_plans (tier_code, plan_name, price_monthly, currency, benefits_json)
@@ -399,3 +431,18 @@ VALUES
     'AI-Driven Goal Adjustment Suggestions',
     'Expert-Reviewed Wellness & Recovery Library'
   ));
+
+-- ============================================================================
+-- 9. DEFAULT SEED DATA (PRODUCTS)
+-- ============================================================================
+
+INSERT INTO products (product_code, product_type, title, description, content_json, price_cents, currency, is_active, premium_only)
+VALUES
+  ('meal_vegetarian_starter', 'meal_plan', 'Vegetarian Starter Meal Plan', '7-day vegetarian meal plan with simple recipes and grocery lists.', JSON_OBJECT('duration_days', 7, 'diet', 'vegetarian', 'meals_per_day', 3, 'includes_recipes', true, 'includes_grocery_list', true, 'notes', 'General meal ideas only. Verify every ingredient and label against your own allergies and dietary needs; this is not nutritional or medical advice.'), 490, 'SGD', true, false),
+  ('meal_vegan_starter', 'meal_plan', 'Vegan Starter Meal Plan', '7-day vegan meal plan with plant-based recipes and grocery lists.', JSON_OBJECT('duration_days', 7, 'diet', 'vegan', 'meals_per_day', 3, 'includes_recipes', true, 'includes_grocery_list', true, 'notes', 'General meal ideas only. Verify every ingredient and label against your own allergies and dietary needs; this is not nutritional or medical advice.'), 490, 'SGD', true, false),
+  ('workout_walking_beginner', 'workout_plan', 'Walking for Wellness (Beginner)', '4-week progressive walking program with pacing guidance.', JSON_OBJECT('duration_weeks', 4, 'activity', 'walking', 'sessions_per_week', 3, 'includes_pacing_guide', true, 'notes', 'General lifestyle ideas, not a medical or exercise prescription. Choose a comfortable pace and stop if uncomfortable.'), 390, 'SGD', true, false),
+  ('workout_yoga_recovery', 'workout_plan', 'Yoga for Recovery & Mobility', '4-week gentle yoga program focused on recovery and mobility.', JSON_OBJECT('duration_weeks', 4, 'activity', 'yoga', 'sessions_per_week', 3, 'includes_breathing_guide', true, 'notes', 'General lifestyle ideas, not a medical or exercise prescription. Choose a comfortable pace and stop if uncomfortable.'), 390, 'SGD', true, false),
+  ('article_sleep_science', 'article', 'The Science of Sleep Hygiene', 'Expert-reviewed article on circadian rhythms, sleep pressure, and practical habits for better sleep.', JSON_OBJECT('category', 'sleep_science', 'reading_time_minutes', 8, 'is_premium_only', true, 'summary', 'Keeping a regular bedtime trains your body clock and improves how refreshed you feel.'), 99, 'SGD', true, true),
+  ('article_recovery_pacing', 'article', 'Active Recovery: Why Light Movement Matters', 'Expert-reviewed article on active recovery principles and gentle movement for rest days.', JSON_OBJECT('category', 'recovery_pacing', 'reading_time_minutes', 6, 'is_premium_only', true, 'summary', 'Gentle activity on rest days supports circulation and can ease muscle soreness.'), 99, 'SGD', true, true),
+  ('article_nutrition_habits', 'article', 'Hydration & Steady Energy', 'Expert-reviewed article on hydration timing and consistent energy through the day.', JSON_OBJECT('category', 'nutrition_habits', 'reading_time_minutes', 5, 'is_premium_only', true, 'summary', 'Small, consistent sips through the day beat one large intake before bed.'), 99, 'SGD', true, true),
+  ('subscription_premium_monthly', 'subscription', 'Healthy360 Plus (Monthly)', 'Monthly premium subscription unlocking personalized plan generators, multi-scenario What-If comparisons, AI goal adjustments, and the expert-reviewed library.', JSON_OBJECT('billing_period', 'monthly', 'renews_automatically', false, 'notes', 'Non-clinical lifestyle content only. Not medical advice.'), 990, 'SGD', true, true);

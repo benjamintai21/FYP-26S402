@@ -4,7 +4,7 @@
 - **Strict English Output:** Always think, plan, and respond strictly in **English**. Never output Chinese or any non-English text, even if an upstream API proxy switches models mid-session.
 - **No Conversational Preamble in Commit Output:** When generating a commit message, output **only** the formatted commit text itself—never include introductory sentences (e.g., *"I'll inspect the staged diff..."*) that could be pasted into Git.
 
----
+---                                                                                                                               
 
 ## 2. Mandatory `plan.txt` Tracking & Pre-Task Checklist Gate
 

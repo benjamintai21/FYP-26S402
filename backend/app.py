@@ -28,7 +28,7 @@ except ImportError:
 
 from ml.service import InvalidMetricError, RecommendationService
 from database import init_db, SessionLocal
-from models import User, UserProfile, DailyLog, Recommendation, UserPreference, FitnessGoal, RevokedToken, BusinessService, BusinessEvent, BusinessPost, EventRegistration, ServiceReservation, EventNotification, Feedback, SubscriptionPlan, UserSubscription, GeneratedPlan, EducationalArticle, Challenge, ChallengeEntry, Cohort, CohortMember, Consent, ActivityLog
+from models import User, UserProfile, DailyLog, Recommendation, UserPreference, FitnessGoal, RevokedToken, BusinessService, BusinessEvent, BusinessPost, EventRegistration, ServiceReservation, EventNotification, Feedback, SubscriptionPlan, UserSubscription, GeneratedPlan, EducationalArticle, Challenge, ChallengeEntry, Cohort, CohortMember, Consent, ActivityLog, Product, Purchase
 from ml.config import SHORT_PLANS
 from auth import hash_password, verify_password, create_access_token, verify_token
 
@@ -538,13 +538,14 @@ def subscription():
         today = date.today()
         if request.method == 'POST':
             action = data['action']
+            charge = False
             if action == 'start':
                 if current and current.renewal_date >= today and current.status in ('active', 'cancelled'):
-                    return jsonify({'error': 'You already have an active test subscription'}), 409
+                    return jsonify({'error': 'You already have an active subscription'}), 409
                 current = UserSubscription(user_id=user.id, plan_id=plan.plan_id, status='active',
                                            start_date=today, renewal_date=today + timedelta(days=30))
                 db.add(current)
-                user.role = 'premium'
+                charge = True
             elif action == 'cancel':
                 if not current or current.status != 'active' or current.renewal_date < today:
                     return jsonify({'error': 'No active subscription to cancel'}), 409
@@ -552,15 +553,27 @@ def subscription():
                 current.cancelled_at = datetime.now(timezone.utc).replace(tzinfo=None)
             else:
                 if not current:
-                    return jsonify({'error': 'Start a test subscription first'}), 409
+                    return jsonify({'error': 'Purchase a subscription first'}), 409
                 current.renewal_date = max(today, current.renewal_date) + timedelta(days=30)
                 current.status = 'active'
                 current.cancelled_at = None
+                charge = True
+            if charge:
+                # A premium subscription is a paid product: record the purchase (simulated payment)
+                # first, and only then promote the user to the premium role.
+                sub_product = db.query(Product).filter_by(product_code='subscription_premium_monthly', is_active=True).first()
+                if not sub_product:
+                    return jsonify({'error': 'Premium subscription is not available for purchase'}), 503
+                payment = Purchase(user_id=user.id, product_id=sub_product.product_id,
+                                   amount_cents=sub_product.price_cents, currency=sub_product.currency,
+                                   status='completed')
+                db.add(payment)
+                db.flush()
                 user.role = 'premium'
             db.commit()
         return jsonify({
-            'mode': 'manual_test', 'plan': plan.plan_name, 'referencePrice': float(plan.price_monthly),
-            'currency': plan.currency, 'benefits': plan.benefits_json,
+            'mode': 'subscription_purchase', 'plan': plan.plan_name, 'referencePrice': float(plan.price_monthly),
+            'currency': plan.currency, 'benefits': plan.benefits_json, 'paymentMethod': 'simulated',
             'subscription': None if not current else {
                 'status': current.status, 'startDate': current.start_date.isoformat(),
                 'accessUntil': current.renewal_date.isoformat(),
@@ -667,6 +680,101 @@ def premium_articles():
         return jsonify({'articles': [{'id': article.article_id, 'title': article.title,
                                       'category': article.category, 'summary': article.summary,
                                       'content': article.content_body} for article in articles]}), 200
+    finally:
+        db.close()
+
+
+@app.route('/api/products', methods=['GET'])
+@require_auth
+@require_roles(*MEMBER_ROLES)
+def get_products():
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(user_id=request.user_id).one()
+        is_premium = user.role == 'premium'
+        products = db.query(Product).filter(Product.is_active.is_(True), Product.product_type != 'subscription').all()
+        result = []
+        for p in products:
+            if p.premium_only and not is_premium:
+                continue
+            result.append({
+                'id': p.product_id,
+                'code': p.product_code,
+                'type': p.product_type,
+                'title': p.title,
+                'description': p.description,
+                'content': p.content_json,
+                'price_cents': p.price_cents,
+                'currency': p.currency,
+                'premium_only': p.premium_only,
+            })
+        return jsonify({'products': result}), 200
+    finally:
+        db.close()
+
+
+@app.route('/api/products/<int:product_id>/purchase', methods=['POST'])
+@require_auth
+@require_roles(*MEMBER_ROLES)
+def purchase_product(product_id):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(user_id=request.user_id).one()
+        product = db.query(Product).filter_by(product_id=product_id, is_active=True).first()
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+        if product.premium_only and user.role != 'premium':
+            return jsonify({'error': 'Premium subscription required for this product'}), 403
+        # Check if already purchased
+        existing = db.query(Purchase).filter_by(user_id=user.id, product_id=product_id, status='completed').first()
+        if existing:
+            return jsonify({'error': 'Already purchased', 'purchase_id': existing.purchase_id}), 409
+        purchase = Purchase(
+            user_id=user.id,
+            product_id=product_id,
+            amount_cents=product.price_cents,
+            currency=product.currency,
+            status='completed',
+        )
+        db.add(purchase)
+        db.commit()
+        return jsonify({
+            'purchase': {
+                'id': purchase.purchase_id,
+                'product_id': product_id,
+                'amount_cents': purchase.amount_cents,
+                'currency': purchase.currency,
+                'purchased_at': purchase.purchased_at.isoformat(),
+            }
+        }), 201
+    finally:
+        db.close()
+
+
+@app.route('/api/purchases', methods=['GET'])
+@require_auth
+@require_roles(*MEMBER_ROLES)
+def get_purchases():
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(user_id=request.user_id).one()
+        purchases = db.query(Purchase).filter_by(user_id=user.id, status='completed').join(Product).order_by(Purchase.purchased_at.desc()).all()
+        return jsonify({
+            'purchases': [{
+                'id': p.purchase_id,
+                'product': {
+                    'id': p.product.product_id,
+                    'code': p.product.product_code,
+                    'type': p.product.product_type,
+                    'title': p.product.title,
+                    'description': p.product.description,
+                    'content': p.product.content_json,
+                },
+                'amount_cents': p.amount_cents,
+                'currency': p.currency,
+                'purchased_at': p.purchased_at.isoformat(),
+            } for p in purchases]
+        }), 200
     finally:
         db.close()
 
@@ -1350,17 +1458,209 @@ def event_notifications():
 @require_auth
 @require_roles(*MEMBER_ROLES)
 def simulated_wearable_sync():
+    """Dev/test-only simulated device sync.
+
+    Retained to exercise the PDPA exclusion guardrail (simulated logs must never
+    count toward cohort analytics or challenge leaderboards). It now runs a
+    realistic sample through the real XGBoost + SHAP pipeline and tags the row
+    ``is_simulated=True``, rather than inserting fixed placeholder metrics.
+    """
     db = SessionLocal()
     try:
         user = db.query(User).filter_by(user_id=request.user_id).one()
         profile = db.query(UserProfile).filter_by(user_id=user.id).one()
-        db.add(DailyLog(
+        sample = {
+            'sleep': profile.target_sleep_hours or 7.0,
+            'heartRate': profile.baseline_resting_hr or 70,
+            'steps': profile.baseline_steps or 7500,
+            'fatigue': profile.baseline_fatigue or 4,
+        }
+        result = service.recommend(sample)
+        log_entry = DailyLog(
             pseudonym_token=profile.pseudonym_token,
             date=datetime.now().date().isoformat(),
-            source='wearable_sync', is_simulated=True, sleep=7.5, heart_rate=70, steps=8000,
+            source='wearable_sync', is_simulated=True,
+            sleep=sample['sleep'], heart_rate=sample['heartRate'],
+            steps=sample['steps'], fatigue=sample['fatigue'],
+            was_imputed=bool(result['imputed_features']),
+        )
+        db.add(log_entry)
+        db.flush()
+        db.add(Recommendation(
+            log_id=log_entry.log_id, predicted_plan=SHORT_PLANS[result['plan_level']],
+            confidence_score=None, shap_factors_json=result['shap_factors'],
+            rationale_text=result['explanation'], what_if_text=result['what_if'],
+            response_json=result, adherence_status='pending',
+            inference_latency_ms=round(result['latency_ms']),
         ))
         db.commit()
-        return jsonify({'message': 'Sample wearable data imported; no device was connected.'}), 201
+        return jsonify({'message': 'Simulated wearable data imported; no device was connected.'}), 201
+    finally:
+        db.close()
+
+
+def _parse_import_rows(req, raw):
+    """Parse an import request body into a list of metric dicts.
+
+    Accepts either a JSON array (or {"logs": [...]}) of dated metric objects,
+    or a CSV body with a header row of date,sleep,heartRate,steps,fatigue.
+    Returns None when the body cannot be interpreted as either format.
+    """
+    is_csv = req.mimetype == 'text/csv' or raw.lstrip()[:4].lower() == 'date'
+    if is_csv:
+        reader = csv.DictReader(io.StringIO(raw))
+        rows = []
+        for row in reader:
+            normalized = {}
+            for key, value in row.items():
+                if key is None:
+                    continue
+                k = key.strip().lower()
+                if k == 'heart_rate':
+                    k = 'heartrate'
+                normalized[k] = (value or '').strip()
+            rows.append({
+                'date': normalized.get('date', ''),
+                'sleep': normalized.get('sleep', ''),
+                'heartRate': normalized.get('heartrate', ''),
+                'steps': normalized.get('steps', ''),
+                'fatigue': normalized.get('fatigue', ''),
+            })
+        return rows
+
+    payload = req.get_json(silent=True)
+    if isinstance(payload, dict) and isinstance(payload.get('logs'), list):
+        return payload['logs']
+    if isinstance(payload, list):
+        return payload
+    return None
+
+
+@app.route('/api/import-logs', methods=['POST'])
+@require_auth
+@require_roles(*MEMBER_ROLES)
+def import_logs():
+    """Import dated lifestyle logs (JSON array or CSV) through the real pipeline.
+
+    Each row is scored by the actual XGBoost + SHAP recommendation service and
+    persisted as a DailyLog + Recommendation, mirroring /api/log-metrics. Rows
+    are idempotent: an existing log for the same date is updated in place.
+    """
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(user_id=request.user_id).one()
+        profile = (
+            db.query(UserProfile)
+            .join(User, UserProfile.user_id == User.id)
+            .filter(User.user_id == request.user_id)
+            .first()
+        )
+        if not profile:
+            return jsonify({'error': 'User not found'}), 404
+
+        raw = request.get_data(as_text=True)
+        rows = _parse_import_rows(request, raw)
+        if rows is None:
+            return jsonify({'error': 'Provide a JSON array of logs or a CSV body with header date,sleep,heartRate,steps,fatigue'}), 400
+        if not rows:
+            return jsonify({'error': 'No log rows to import'}), 400
+        if len(rows) > 500:
+            return jsonify({'error': 'Import is limited to 500 rows per request'}), 400
+
+        imported = updated = skipped = 0
+        errors = []
+        today = datetime.now().strftime('%Y-%m-%d')
+
+        for index, row in enumerate(rows):
+            if not isinstance(row, dict):
+                skipped += 1
+                errors.append({'row': index + 1, 'error': 'row is not an object'})
+                continue
+
+            metrics = {}
+            for key in ('sleep', 'heartRate', 'steps', 'fatigue'):
+                val = row.get(key)
+                if val not in (None, ''):
+                    metrics[key] = val
+            if not metrics:
+                skipped += 1
+                errors.append({'row': index + 1, 'error': 'no metrics provided'})
+                continue
+
+            log_date = row.get('date') or today
+            if not isinstance(log_date, str) or len(log_date) < 10:
+                skipped += 1
+                errors.append({'row': index + 1, 'error': f'invalid date {log_date!r}'})
+                continue
+
+            try:
+                result = service.recommend(metrics)
+            except InvalidMetricError as err:
+                skipped += 1
+                errors.append({'row': index + 1, 'error': str(err)})
+                continue
+
+            existing = (
+                db.query(DailyLog)
+                .filter(DailyLog.pseudonym_token == profile.pseudonym_token,
+                        DailyLog.date == log_date[:10])
+                .first()
+            )
+            if existing:
+                existing.sleep = metrics.get('sleep')
+                existing.heart_rate = metrics.get('heartRate')
+                existing.steps = metrics.get('steps')
+                existing.fatigue = metrics.get('fatigue')
+                existing.source = 'import'
+                existing.is_simulated = False
+                existing.was_imputed = bool(result['imputed_features'])
+                rec = db.query(Recommendation).filter_by(log_id=existing.log_id).first()
+                if rec:
+                    rec.predicted_plan = SHORT_PLANS[result['plan_level']]
+                    rec.shap_factors_json = result['shap_factors']
+                    rec.rationale_text = result['explanation']
+                    rec.what_if_text = result['what_if']
+                    rec.response_json = result
+                    rec.inference_latency_ms = round(result['latency_ms'])
+                else:
+                    db.add(Recommendation(
+                        log_id=existing.log_id, predicted_plan=SHORT_PLANS[result['plan_level']],
+                        confidence_score=None, shap_factors_json=result['shap_factors'],
+                        rationale_text=result['explanation'], what_if_text=result['what_if'],
+                        response_json=result, adherence_status='pending',
+                        inference_latency_ms=round(result['latency_ms']),
+                    ))
+                updated += 1
+            else:
+                log_entry = DailyLog(
+                    pseudonym_token=profile.pseudonym_token,
+                    date=log_date[:10],
+                    was_imputed=bool(result['imputed_features']),
+                    sleep=float(metrics['sleep']) if metrics.get('sleep') not in (None, '') else None,
+                    heart_rate=float(metrics['heartRate']) if metrics.get('heartRate') not in (None, '') else None,
+                    steps=float(metrics['steps']) if metrics.get('steps') not in (None, '') else None,
+                    fatigue=float(metrics['fatigue']) if metrics.get('fatigue') not in (None, '') else None,
+                    source='import',
+                    is_simulated=False,
+                )
+                db.add(log_entry)
+                db.flush()
+                db.add(Recommendation(
+                    log_id=log_entry.log_id, predicted_plan=SHORT_PLANS[result['plan_level']],
+                    confidence_score=None, shap_factors_json=result['shap_factors'],
+                    rationale_text=result['explanation'], what_if_text=result['what_if'],
+                    response_json=result, adherence_status='pending',
+                    inference_latency_ms=round(result['latency_ms']),
+                ))
+                imported += 1
+
+        db.commit()
+        return jsonify({'project_id': 'CSIT-26-S4-03', 'imported': imported, 'updated': updated,
+                        'skipped': skipped, 'errors': errors}), 200
+    except Exception:
+        db.rollback()
+        app.logger.exception('Could not import logs')
+        return jsonify({'error': 'Could not import logs'}), 500
     finally:
         db.close()
 

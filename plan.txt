@@ -59,12 +59,71 @@ Implement the `/admin` governance view and package the entire multi-service stac
 
 ---
 
+## Phase 6: UI Polish & Mobile Navigation Consolidation *(Completed)*
+
+Improve overall web/app UI (alignment, fonts, typography, navbar) and reduce the mobile bottom tab bar to at most 5 icons, using popular mobile apps as reference:
+
+- [x] **System Font Stack & Typography:** Replaced Inter with the system font stack (`-apple-system, Segoe UI, Roboto, ...`) and normalized letter-spacing, weights, and scale across headers, cards, and forms.
+- [x] **Mobile Bottom Navbar ≤ 5 Tabs:** Consolidated member destinations into exactly 5 tabs (Today, Explore, elevated Check-in, Goals, More) and 4 portal tabs, mirroring popular fitness/social apps. Added a `MorePage` hub so no destination was removed.
+- [x] **Remove Avoid-List Patterns:** Removed purple-to-blue gradients, gradient hero text, emojis in headings, colored left-border recommendation cards, glassmorphism auth card, and badges above headlines. Swapped Lucide for the project's custom stroke `Icon.jsx`.
+- [x] **Verification:** `npm run build` passes, ESLint clean on all changed files, and `npx cap sync` copied the updated bundle into `android/`.
+
+---
+
+## Phase 7: Demo Data & Real Content Pipeline *(Completed)*
+
+Make the app genuinely useful by populating it with real, realistic data that flows through the actual XGBoost + SHAP recommendation pipeline:
+
+- [x] **Seed Script (`backend/seed_demo.py`):** One command creates 9 demo accounts (6 members incl. 3 premium, 2 business, 1 admin) each with ~30 days of realistic daily logs, every log scored through the real `RecommendationService` (so SHAP bars, plain-English rationales, What-If recourse, and trend charts all render genuine content). Also seeds PDPA consents, fitness goals, activity logs, a premium subscription, business services/events/posts, a live step challenge + cohort (satisfying the k-anonymity >= 5 gate), and approved educational articles. Prints demo credentials.
+- [x] **Real Data Ingestion:** Replaced the fixed `simulated_wearable_sync` with a real `POST /api/import-logs` endpoint accepting dated logs (sleep/hr/steps/fatigue) as JSON array or CSV, idempotently updating by pseudonym + date (max 500 rows), with per-row validation and `InvalidMetricError` skip handling; added an "Import data" flow on `LoggingPage` (CSV/JSON/fill-example). Simulated routes preserved and still tagged `is_simulated=True` for PDPA exclusion.
+- [x] **Verification:** Confirmed seed rows render correctly in the live app via a headless Chromium run — logged in with the seeded premium account (`marcus.lee@demo.com`), verified the recommendation card, SHAP factor bars, and What-If sections all populate, the 5-tab mobile bar (Today, Explore, elevated Check-in, Goals, More), and the `/more` hub (7 rows). Verified **39 passing backend tests** and a successful `npm run build`.
+
+---
+
+## Phase 8: HomePage Enhancement *(Completed)*
+
+Enhance the landing page with richer content, clear CTAs, and trust signals to convert visitors and orient logged-in users:
+
+- [x] **Hero Section Upgrade:** Added non-clinical disclaimer badge, refined tagline, trust signal badges (Fairlearn, PDPA, SHAP, <2s latency), and contextual CTAs for both logged-in (Go to account) and logged-out (Get started free, Log in, Learn more) states.
+- [x] **How It Works Section:** Four-step visual flow (Log your day → Get recommendation → Explore alternatives → Track trends) with numbered step cards.
+- [x] **Enhanced Features Grid:** Feature cards with custom SVG icons (activity, chart, compass, shield) from the project's Icon.jsx system, consistent with mobile tab bar iconography.
+- [x] **Trust Signals Section:** Technical safeguards presented as cards (fairlearn auditing, PDPA compliance, SHAP explainability, <2s latency target) with labeled values and descriptions.
+- [x] **Bottom CTA Section:** Final conversion card with compelling headline and primary/secondary actions.
+- [x] **Responsive Design:** Mobile-first breakpoints at 700px and 480px for all new sections, maintaining system font stack and avoiding avoid-list patterns (no gradients, emojis, glassmorphism).
+- [x] **Verification:** `npm run build` passes with updated HomePage.jsx and App.css.
+
+---
+
+## Phase 9: In-App Purchase Flow for Content *(Completed)*
+
+Implement a storefront for purchasing meal plans, workout plans, and expert articles, integrated with the existing premium subscription system.
+
+- [x] **Data Model (`backend/models.py`, `backend/database/schema.sql`):** Added `Product` and `Purchase` tables with product types (`meal_plan`, `workout_plan`, `article`), premium gating (`premium_only` flag), structured `content_json`, and price in cents (SGD).
+- [x] **Backend Endpoints (`backend/app.py`):** `GET /api/products` (catalog filtered by user role), `POST /api/products/<id>/purchase` (records purchase, prevents duplicates with 409), `GET /api/purchases` (history with access to content).
+- [x] **Seed Data:** 7 demo products (3 meal plans, 2 workout plans, 2 articles) with non-clinical disclaimers in `content_json`.
+- [x] **Frontend API (`frontend/src/api.js`):** Added `getProducts()`, `purchaseProduct(productId)`, `getPurchases()`.
+- [x] **StorePage (`frontend/src/pages/StorePage.jsx`):** Product catalog grid with premium gating, purchase buttons, purchase history section with expandable content view.
+- [x] **Navigation Integration:** Added `/store` route to `App.jsx` (accessible to `registered` and `premium` roles) and link in `MorePage`.
+- [x] **Verification:** **41 passing backend tests** (incl. new purchase-flow + premium-gating tests) and successful `npm run build`. Live end-to-end verified against the running MySQL `healthy360_db`: login as demo premium user → `GET /api/products` (7 items) → `POST /api/products/<id>/purchase` (201, duplicate → 409) → `GET /api/purchases` (history with expandable content). Missing `products`/`purchases` tables were created in the live DB by applying the schema DDL as root, and a missing `Purchase.product` ORM relationship was added to fix the `/purchases` GET (was returning 500).
+
+---
+
+## Phase 10: Subscription Purchase-First Flow *(Completed)*
+
+Change subscription logic so users must purchase a subscription product before being promoted to premium role, replacing the previous "manual test subscription" that granted premium for free.
+
+- [x] **Backend (`backend/app.py`):** Modified `/api/subscription` POST endpoint — `start` and `renew` actions now record a `Purchase` (simulated payment) for the `subscription_premium_monthly` product before promoting `user.role='premium'`. Response mode changed to `subscription_purchase`. Cancel action records no payment.
+- [x] **Database (`backend/database/schema.sql`, `backend/tests/conftest.py`):** Added `subscription` to `product_type` ENUM. Seeded `subscription_premium_monthly` product (990 cents SGD, `premium_only=true`).
+- [x] **Products Catalog (`backend/app.py`):** `GET /api/products` now filters out `product_type='subscription'` — subscription is purchased via `/api/subscription` not `/api/products`.
+- [x] **Frontend (`frontend/src/pages/SubscriptionPage.jsx`):** Complete UX rewrite for purchase-first flow. Shows plan details and "Purchase subscription" button; after purchase shows active status with "Cancel future renewal" and "Renew for 30 days" options. Profile page link text updated.
+- [x] **Tests (`backend/tests/test_account_storage.py`):** Rewrote `test_subscription_purchase_promotes_to_premium` and updated `test_premium_only_products_require_premium_role` to reflect purchase-first flow. All **27 backend tests pass**.
+- [x] **Verification:** Backend test suite (27 passing) and frontend `npm run build` both pass.
+
 ## Immediate Next Steps
 
-- [x] **1. Sync Mobile Bundle & Verify Live MySQL:** Run `npm run build && npx cap sync` inside `frontend/` so the Android emulator receives the updated `BusinessInsights` (with CSV/PDF export buttons), and confirm `backend/.env` connects cleanly to `healthy360_db` in MySQL 8.
-- [x] **2. Complete Phase 5 - System Admin Governance:** Implement `/api/admin/*` endpoints and React Admin Dashboard views:
-  - User & Content Governance: `GET /api/admin/users`, `GET /api/admin/users/<id>`, `GET /api/admin/feedback`, `PATCH /api/admin/articles/<id>/status`, `PUT /api/admin/plans`
-  - Algorithmic Fairness & Audit Logs: `GET /api/admin/fairness-audit` (fairlearn integration), `GET /api/admin/logs`
-  - Podman Compose Orchestration: `podman-compose.yml` with `db` (mysql:8.0), `backend` (Flask on 5000), `frontend` (Nginx on 5173/80)
+- [x] **1. Real Data Ingestion:** Added `POST /api/import-logs` (JSON array / CSV, idempotent by pseudonym + date, max 500 rows) and an "Import data" flow on `LoggingPage`. Verified with **39 passing backend tests** (incl. CSV import + idempotent re-import + PDPA non-simulated guardrail) and a successful `npm run build`.
+- [x] **2. Visual Verification:** Launched the Vite dev server + Flask backend and drove the live app in headless Chromium — confirmed the 5-tab mobile bar (elevated Check-in), the `/more` hub (7 rows), the typography/alignment changes, and seeded demo data render correctly across the home, login, dashboard, and more pages.
 - [x] **3. Documentation & Verification:** Update test suites, verify 38+ passing backend tests, successful frontend build, and document ahead of **Submission 3 (12 Dec 2026)** and **Submission 4 (19 Dec 2026)**.
-- [x] **4. Sync Mobile Bundle for Phase 5:** Run `npm run build && npx cap sync` inside `frontend/` so the Android emulator receives the updated Admin Dashboard.
+- [x] **4. HomePage Enhancement:** Added rich hero, how-it-works flow, feature cards with icons, trust signals, and conversion CTA — all responsive, no avoid-list patterns. Frontend build verified.
+- [x] **5. In-App Purchase Flow:** StorePage with catalog, purchase flow, and purchase history integrated with premium gating. Verified with **41 backend tests** and successful frontend build; live purchase flow exercised end-to-end against MySQL with real HTTP calls.
+- [x] **6. Subscription Purchase-First Flow:** Users must now purchase the `subscription_premium_monthly` product via `/api/subscription` before being promoted to premium role. Backend tests (27 passing) and frontend build verified.

@@ -32,7 +32,6 @@ export default function LogInPage() {
           <span>Healthy<span>360</span></span>
         </Link>
         <div className="auth-heading">
-          <span className="auth-eyebrow">YOUR WELLNESS, IN FOCUS</span>
           <h1>Welcome back</h1>
           <p>Sign in to pick up where you left off.</p>
         </div>

@@ -1,5 +1,6 @@
 import uuid
 from sqlalchemy import Column, String, Integer, Float, DateTime, Date, Boolean, ForeignKey, JSON, Numeric, Text, UniqueConstraint
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
@@ -284,3 +285,34 @@ class ActivityLog(Base):
     title = Column(String(150), nullable=False)
     duration_minutes = Column(Integer)
     notes = Column(Text)
+
+
+class Product(Base):
+    __tablename__ = 'products'
+
+    product_id = Column(Integer, primary_key=True, autoincrement=True)
+    product_code = Column(String(50), unique=True, nullable=False)
+    product_type = Column(String(20), nullable=False)  # 'meal_plan', 'workout_plan', 'article'
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False)
+    content_json = Column(JSON, nullable=False)  # structured plan/article content
+    price_cents = Column(Integer, nullable=False)  # price in cents (SGD)
+    currency = Column(String(3), nullable=False, default='SGD')
+    is_active = Column(Boolean, nullable=False, default=True)
+    premium_only = Column(Boolean, nullable=False, default=False)  # if true, only premium users can purchase
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class Purchase(Base):
+    __tablename__ = 'purchases'
+
+    purchase_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False)
+    amount_cents = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False, default='SGD')
+    status = Column(String(20), nullable=False, default='completed')  # 'completed', 'refunded'
+    purchased_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    product = relationship('Product')

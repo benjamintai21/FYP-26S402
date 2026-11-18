@@ -6,7 +6,7 @@ import pytest
 
 from app import app
 from database import SessionLocal
-from models import DailyLog, Feedback, User, UserProfile, SubscriptionPlan, UserSubscription, Consent
+from models import DailyLog, Feedback, Recommendation, User, UserProfile, SubscriptionPlan, UserSubscription, Consent
 
 
 def register(client, role='registered'):
@@ -128,7 +128,7 @@ def test_admin_login_is_not_available():
     assert client.post('/api/login', json={'email': email, 'password': 'test-password'}).status_code == 401
 
 
-def test_member_baseline_persists_and_sample_sync_is_labeled():
+def test_member_baseline_persists_and_imported_logs_are_labeled():
     client = app.test_client()
     _, registered = register(client)
     headers = {'Authorization': f"Bearer {registered['token']}"}
@@ -139,15 +139,66 @@ def test_member_baseline_persists_and_sample_sync_is_labeled():
     me = client.get('/api/me', headers=headers).get_json()['user']
     assert me['onboarded'] is True
     assert me['baseline'] == profile['baseline']
-    assert client.post('/api/wearable/sync', headers=headers).status_code == 201
+    today = date.today().isoformat()
+    resp = client.post('/api/import-logs', headers=headers, json={'logs': [
+        {'date': today, 'sleep': 7.2, 'heartRate': 68, 'steps': 9200, 'fatigue': 3.5},
+    ]})
+    assert resp.status_code == 200
+    assert resp.get_json()['imported'] == 1
     db = SessionLocal()
     try:
         user = db.query(User).filter_by(user_id=registered['user']['user_id']).one()
         stored_profile = db.query(UserProfile).filter_by(user_id=user.id).one()
         log = db.query(DailyLog).filter_by(pseudonym_token=stored_profile.pseudonym_token).one()
-        assert log.source == 'wearable_sync'
-        assert log.is_simulated is True
-        assert log.fatigue is None
+        assert log.source == 'import'
+        assert log.is_simulated is False
+        assert log.fatigue == 3.5
+        assert db.query(Recommendation).filter_by(log_id=log.log_id).count() == 1
+    finally:
+        db.close()
+
+
+def test_import_logs_supports_csv_idempotency_and_validation():
+    client = app.test_client()
+    _, registered = register(client)
+    headers = {'Authorization': f"Bearer {registered['token']}"}
+    assert client.post('/api/onboarding', headers=headers, json={
+        'ageBracket': '30-44', 'activityLevel': 'light', 'baseline': {
+            'sleep': 7.5, 'heartRate': 65, 'steps': 8500, 'fatigue': 3,
+        },
+    }).status_code == 200
+    today = date.today().isoformat()
+    csv_body = f"date,sleep,heartRate,steps,fatigue\n{today},7.4,66,10100,3.0\n2026-01-01,6.2,75,4300,5.5\n"
+    first = client.post('/api/import-logs', headers=headers, data=csv_body, content_type='text/csv')
+    assert first.status_code == 200
+    body = first.get_json()
+    assert body['imported'] == 2
+    assert body['skipped'] == 0
+
+    # Re-importing the same CSV updates in place rather than duplicating.
+    again = client.post('/api/import-logs', headers=headers, data=csv_body, content_type='text/csv')
+    assert again.get_json()['updated'] == 2
+    assert again.get_json()['imported'] == 0
+
+    # A malformed body is rejected, and a bad row is skipped, not fatal.
+    assert client.post('/api/import-logs', headers=headers, json={'logs': 'not-a-list'}).status_code == 400
+    mixed = client.post('/api/import-logs', headers=headers, json={'logs': [
+        {'date': today, 'sleep': 'abc', 'heartRate': 70, 'steps': 5000, 'fatigue': 4},
+        {'date': '2026-02-01', 'sleep': 7.0, 'heartRate': 70, 'steps': 5000, 'fatigue': 4},
+    ]})
+    assert mixed.status_code == 200
+    assert mixed.get_json()['skipped'] == 1
+    assert mixed.get_json()['imported'] == 1
+
+    # Imported logs must never be flagged simulated (PDPA exclusion guardrail).
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(user_id=registered['user']['user_id']).one()
+        profile = db.query(UserProfile).filter_by(user_id=user.id).one()
+        logs = db.query(DailyLog).filter_by(pseudonym_token=profile.pseudonym_token).all()
+        assert len(logs) == 3
+        assert all(log.source == 'import' for log in logs)
+        assert all(log.is_simulated is False for log in logs)
     finally:
         db.close()
 
@@ -263,26 +314,42 @@ def test_business_offerings_are_owned_and_event_changes_notify_attendees():
     assert client.post('/api/business/events', json=event, headers=member_headers).status_code == 403
 
 
-def test_manual_subscription_cancel_and_renew_without_payment():
+def test_subscription_purchase_promotes_to_premium():
     client = app.test_client()
     _, member = register(client)
     headers = {'Authorization': f"Bearer {member['token']}"}
     db = SessionLocal()
     try:
         if not db.query(SubscriptionPlan).filter_by(tier_code='premium').first():
-            db.add(SubscriptionPlan(tier_code='premium', plan_name='Test premium', price_monthly=0,
-                                    currency='SGD', benefits_json=[], is_active=True))
+            db.add(SubscriptionPlan(tier_code='premium', plan_name='Test premium', price_monthly=9.90,
+                                    currency='SGD', benefits_json=['benefit1'], is_active=True))
             db.commit()
     finally:
         db.close()
+    # Start = purchase subscription -> promotes to premium
     started = client.post('/api/subscription', json={'action': 'start'}, headers=headers)
     assert started.status_code == 200
-    assert started.get_json()['mode'] == 'manual_test'
+    assert started.get_json()['mode'] == 'subscription_purchase'
+    assert started.get_json()['role'] == 'premium'
     assert client.get('/api/me', headers=headers).get_json()['user']['role'] == 'premium'
+    # Verify a purchase was recorded
+    purchases = client.get('/api/purchases', headers=headers).get_json()['purchases']
+    assert len(purchases) == 1
+    assert purchases[0]['product']['code'] == 'subscription_premium_monthly'
+    # Cancel future renewal (no payment)
     cancelled = client.post('/api/subscription', json={'action': 'cancel'}, headers=headers)
+    assert cancelled.status_code == 200
     assert cancelled.get_json()['subscription']['status'] == 'cancelled'
+    # Still premium until renewal date passes
     assert client.get('/api/me', headers=headers).get_json()['user']['role'] == 'premium'
-    assert client.post('/api/subscription', json={'action': 'renew'}, headers=headers).get_json()['subscription']['status'] == 'active'
+    # Renew = purchase again -> extends access
+    renewed = client.post('/api/subscription', json={'action': 'renew'}, headers=headers)
+    assert renewed.status_code == 200
+    assert renewed.get_json()['subscription']['status'] == 'active'
+    # Verify another purchase recorded
+    purchases = client.get('/api/purchases', headers=headers).get_json()['purchases']
+    assert len(purchases) == 2
+    # Expire subscription -> role drops to registered
     db = SessionLocal()
     try:
         user = db.query(User).filter_by(user_id=member['user']['user_id']).one()
@@ -453,3 +520,69 @@ def test_authenticated_checkin_completes_within_two_seconds():
     })
     assert response.status_code == 200
     assert time.perf_counter() - started <= 2.0
+
+
+def test_products_catalog_respects_role_and_purchase_flow_is_isolated():
+    client = app.test_client()
+    _, member = register(client)
+    headers = {'Authorization': f"Bearer {member['token']}"}
+
+    # Registered member sees only non-premium-only products
+    catalog = client.get('/api/products', headers=headers)
+    assert catalog.status_code == 200
+    products = catalog.get_json()['products']
+    assert products
+    assert all(not p['premium_only'] for p in products)
+    assert all(p['currency'] == 'SGD' for p in products)
+    assert all(isinstance(p['content'], dict) for p in products)
+
+    # Purchase the first available product
+    target = products[0]
+    purchase = client.post(f"/api/products/{target['id']}/purchase", headers=headers)
+    assert purchase.status_code == 201
+    assert purchase.get_json()['purchase']['product_id'] == target['id']
+    assert purchase.get_json()['purchase']['amount_cents'] == target['price_cents']
+
+    # Duplicate purchase is rejected with 409
+    duplicate = client.post(f"/api/products/{target['id']}/purchase", headers=headers)
+    assert duplicate.status_code == 409
+
+    # Purchases history lists the owned product with its content
+    history = client.get('/api/purchases', headers=headers)
+    assert history.status_code == 200
+    purchases = history.get_json()['purchases']
+    assert len(purchases) == 1
+    assert purchases[0]['product']['id'] == target['id']
+    assert purchases[0]['product']['title'] == target['title']
+    assert purchases[0]['product']['content'] == target['content']
+
+    # A second member cannot see the first member's purchases
+    _, other = register(client)
+    other_headers = {'Authorization': f"Bearer {other['token']}"}
+    assert client.get('/api/purchases', headers=other_headers).get_json()['purchases'] == []
+
+
+def test_premium_only_products_require_premium_role():
+    client = app.test_client()
+    _, member = register(client)
+    member_headers = {'Authorization': f"Bearer {member['token']}"}
+
+    # First, purchase a premium subscription to become a premium user
+    sub = client.post('/api/subscription', json={'action': 'start'}, headers=member_headers)
+    assert sub.status_code == 200
+    assert sub.get_json()['role'] == 'premium'
+    assert client.get('/api/me', headers=member_headers).get_json()['user']['role'] == 'premium'
+
+    premium_catalog = client.get('/api/products', headers=member_headers).get_json()['products']
+    premium_only = [p for p in premium_catalog if p['premium_only']]
+    assert premium_only, 'Expected premium-only products in seed catalog'
+
+    # Premium member can buy a premium-only product
+    ok = client.post(f"/api/products/{premium_only[0]['id']}/purchase", headers=member_headers)
+    assert ok.status_code == 201
+
+    # A registered member cannot buy a premium-only product
+    _, registered_member = register(client)
+    reg_headers = {'Authorization': f"Bearer {registered_member['token']}"}
+    blocked = client.post(f"/api/products/{premium_only[0]['id']}/purchase", headers=reg_headers)
+    assert blocked.status_code == 403
