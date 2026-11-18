@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: healthy360_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-healthy360_db}
+      MYSQL_USER: ${MYSQL_USER:-healthy360_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - healthy360_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: healthy360_backend
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-healthy360_user}:${MYSQL_PASSWORD:-changeme}@db:3306/${MYSQL_DATABASE:-healthy360_db}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      FLASK_ENV: production
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - healthy360_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: healthy360_frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - healthy360_net
+
+volumes:
+  db_data:
+
+networks:
+  healthy360_net:
+    driver: bridge

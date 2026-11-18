@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import LoggingPage from './pages/LoggingPage';
 import ExplorerPage from './pages/ExplorerPage';
 import BusinessPage from './pages/BusinessPage';
+import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
 import ProfileEditPage from './pages/ProfileEditPage';
 import DevResetPage from './pages/DevResetPage';
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/subscription" element={<ProtectedRoute roles={MEMBER_ROLES} requireOnboarded={false}><SubscriptionPage /></ProtectedRoute>} />
             <Route path="/premium" element={<ProtectedRoute roles={['premium']}><PremiumPage /></ProtectedRoute>} />
             <Route path="/business" element={<ProtectedRoute roles={['business']} requireOnboarded={false}><BusinessPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute roles={['admin']} requireOnboarded={false}><AdminPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute roles={['registered', 'premium', 'business']} requireOnboarded={false}><ProfilePage /></ProtectedRoute>} />
             <Route path="/profile/edit" element={<ProtectedRoute roles={['registered', 'premium', 'business']} requireOnboarded={false}><ProfileEditPage /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />

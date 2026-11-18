@@ -137,6 +137,23 @@ export const getActivities = () => apiCall('/activities', { method: 'GET' });
 export const saveActivity = (activity) => apiCall('/activities', { method: 'POST', body: JSON.stringify(activity) });
 export const deleteActivity = (id) => apiCall(`/activities/${id}`, { method: 'DELETE' });
 
+export const getAdminUsers = (page = 1, perPage = 20, role) => {
+  const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  if (role) params.set('role', role);
+  return apiCall(`/admin/users?${params.toString()}`, { method: 'GET' });
+};
+export const getAdminUserDetail = (userId) => apiCall(`/admin/users/${userId}`, { method: 'GET' });
+export const getAdminFeedback = (page = 1, perPage = 50) => apiCall(`/admin/feedback?page=${page}&per_page=${perPage}`, { method: 'GET' });
+export const patchAdminArticleStatus = (articleId, status) => apiCall(`/admin/articles/${articleId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+export const putAdminPlans = (data) => apiCall('/admin/plans', { method: 'PUT', body: JSON.stringify(data) });
+export const getAdminFairnessAudit = (dimension = 'age_bracket') => apiCall(`/admin/fairness-audit?dimension=${dimension}`, { method: 'GET' });
+export const getAdminLogs = (page = 1, perPage = 50, level, event) => {
+  const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  if (level) params.set('level', level);
+  if (event) params.set('event', event);
+  return apiCall(`/admin/logs?${params.toString()}`, { method: 'GET' });
+};
+
 export async function logMetrics(metrics) {
   return apiCall('/log-metrics', {
     method: 'POST',

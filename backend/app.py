@@ -19,6 +19,13 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
+try:
+    from fairlearn.metrics import demographic_parity_difference, disparate_impact_ratio
+    from sklearn.metrics import accuracy_score
+    FAIRLEARN_AVAILABLE = True
+except ImportError:
+    FAIRLEARN_AVAILABLE = False
+
 from ml.service import InvalidMetricError, RecommendationService
 from database import init_db, SessionLocal
 from models import User, UserProfile, DailyLog, Recommendation, UserPreference, FitnessGoal, RevokedToken, BusinessService, BusinessEvent, BusinessPost, EventRegistration, ServiceReservation, EventNotification, Feedback, SubscriptionPlan, UserSubscription, GeneratedPlan, EducationalArticle, Challenge, ChallengeEntry, Cohort, CohortMember, Consent, ActivityLog
@@ -1559,6 +1566,295 @@ def recommendation_endpoint():
     except InvalidMetricError as err:
         return jsonify({"error": str(err)}), 400
     return jsonify({"project_id": "CSIT-26-S4-03", **result})
+
+
+@app.route('/api/admin/users', methods=['GET'])
+@require_auth
+@require_roles('admin')
+def admin_users():
+    db = SessionLocal()
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        role_filter = request.args.get('role')
+        query = db.query(User)
+        if role_filter and role_filter in ('registered', 'premium', 'business', 'admin'):
+            query = query.filter(User.role == role_filter)
+        total = query.count()
+        users = query.order_by(User.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+        return jsonify({
+            'users': [user_payload(u) for u in users],
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'total_pages': (total + per_page - 1) // per_page
+        }), 200
+    finally:
+        db.close()
+
+
+@app.route('/api/admin/users/<user_id>', methods=['GET'])
+@require_auth
+@require_roles('admin')
+def admin_user_detail(user_id):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.user_id == user_id).first()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        result = user_payload(user)
+        if user.role in MEMBER_ROLES:
+            profile = db.query(UserProfile).filter_by(user_id=user.id).first()
+            if profile:
+                result.update(profile_payload(profile))
+        subscriptions = db.query(UserSubscription).filter_by(user_id=user.id).order_by(UserSubscription.subscription_id.desc()).all()
+        result['subscriptions'] = [{
+            'plan': s.plan.tier_code if s.plan else None,
+            'status': s.status,
+            'startDate': s.start_date.isoformat(),
+            'renewalDate': s.renewal_date.isoformat(),
+            'cancelledAt': s.cancelled_at.isoformat() if s.cancelled_at else None,
+        } for s in subscriptions]
+        feedback = db.query(Feedback).filter_by(user_id=user.id).order_by(Feedback.feedback_id.desc()).limit(20).all()
+        result['recentFeedback'] = [{
+            'id': f.feedback_id,
+            'clarity': f.clarity_score,
+            'trust': f.trust_score,
+            'comment': f.comment_text,
+            'isPublic': f.is_public_featured,
+            'createdAt': f.created_at.isoformat(),
+        } for f in feedback]
+        return jsonify({'user': result}), 200
+    finally:
+        db.close()
+
+
+@app.route('/api/admin/feedback', methods=['GET'])
+@require_auth
+@require_roles('admin')
+def admin_feedback():
+    db = SessionLocal()
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        query = db.query(Feedback, User).join(User, Feedback.user_id == User.id).order_by(Feedback.created_at.desc())
+        total = query.count()
+        rows = query.offset((page - 1) * per_page).limit(per_page).all()
+        return jsonify({
+            'feedback': [{
+                'id': f.feedback_id,
+                'user': {'id': u.user_id, 'email': u.email, 'name': u.name, 'role': u.role},
+                'clarity': f.clarity_score,
+                'trust': f.trust_score,
+                'comment': f.comment_text,
+                'isPublic': f.is_public_featured,
+                'recommendationId': f.rec_id,
+                'createdAt': f.created_at.isoformat(),
+            } for f, u in rows],
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'total_pages': (total + per_page - 1) // per_page
+        }), 200
+    finally:
+        db.close()
+
+
+@app.route('/api/admin/articles/<int:article_id>/status', methods=['PATCH'])
+@require_auth
+@require_roles('admin')
+def admin_article_status(article_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or data.get('status') not in ('approved', 'rejected'):
+        return jsonify({'error': 'Status must be approved or rejected'}), 400
+    db = SessionLocal()
+    try:
+        article = db.query(EducationalArticle).filter_by(article_id=article_id).first()
+        if not article:
+            return jsonify({'error': 'Article not found'}), 404
+        article.approval_status = data['status']
+        article.reviewed_by = request.user_id
+        if data['status'] == 'approved':
+            article.published_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        db.commit()
+        return jsonify({'article': {
+            'id': article.article_id,
+            'title': article.title,
+            'status': article.approval_status,
+            'reviewedBy': article.reviewed_by,
+            'publishedAt': article.published_at.isoformat() if article.published_at else None,
+        }}), 200
+    finally:
+        db.close()
+
+
+@app.route('/api/admin/plans', methods=['PUT'])
+@require_auth
+@require_roles('admin')
+def admin_plans():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not data.get('tier_code') or data['tier_code'] not in ('free', 'premium'):
+        return jsonify({'error': 'Valid tier_code (free or premium) is required'}), 400
+    db = SessionLocal()
+    try:
+        plan = db.query(SubscriptionPlan).filter_by(tier_code=data['tier_code']).first()
+        if not plan:
+            return jsonify({'error': 'Plan not found'}), 404
+        if 'plan_name' in data and isinstance(data['plan_name'], str) and data['plan_name'].strip():
+            plan.plan_name = data['plan_name'].strip()
+        if 'price_monthly' in data:
+            try:
+                price = Decimal(str(data['price_monthly']))
+                if not price.is_finite() or price < 0 or price.as_tuple().exponent < -2:
+                    raise ValueError
+                plan.price_monthly = price
+            except (InvalidOperation, ValueError):
+                return jsonify({'error': 'Invalid price'}), 400
+        if 'currency' in data and isinstance(data['currency'], str) and len(data['currency']) == 3:
+            plan.currency = data['currency'].upper()
+        if 'benefits' in data and isinstance(data['benefits'], list):
+            plan.benefits_json = [str(b).strip() for b in data['benefits'] if isinstance(b, str) and b.strip()]
+        if 'is_active' in data and isinstance(data['is_active'], bool):
+            plan.is_active = data['is_active']
+        plan.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        db.commit()
+        return jsonify({'plan': {
+            'tierCode': plan.tier_code,
+            'planName': plan.plan_name,
+            'priceMonthly': float(plan.price_monthly),
+            'currency': plan.currency,
+            'benefits': plan.benefits_json,
+            'isActive': plan.is_active,
+        }}), 200
+    finally:
+        db.close()
+
+
+@app.route('/api/admin/fairness-audit', methods=['GET'])
+@require_auth
+@require_roles('admin')
+def admin_fairness_audit():
+    if not FAIRLEARN_AVAILABLE:
+        return jsonify({'error': 'Fairlearn not available'}), 503
+    db = SessionLocal()
+    try:
+        subgroup_dim = request.args.get('dimension', 'age_bracket')
+        if subgroup_dim not in ('age_bracket', 'activity_tier'):
+            return jsonify({'error': 'Dimension must be age_bracket or activity_tier'}), 400
+
+        rows = db.query(Recommendation, UserProfile, User).join(
+            DailyLog, Recommendation.log_id == DailyLog.log_id
+        ).join(
+            UserProfile, DailyLog.pseudonym_token == UserProfile.pseudonym_token
+        ).join(
+            User, UserProfile.user_id == User.id
+        ).filter(
+            Recommendation.predicted_plan.isnot(None),
+            User.role.in_(MEMBER_ROLES)
+        ).all()
+
+        if len(rows) < 10:
+            return jsonify({'error': 'Insufficient data for fairness audit (minimum 10 recommendations)'}), 400
+
+        y_true = []
+        y_pred = []
+        sensitive_features = []
+
+        for rec, profile, user in rows:
+            plan_map = {'Active Recovery': 0, 'Moderate Cardio': 1, 'High-Intensity Training': 2}
+            true_plan = plan_map.get(rec.predicted_plan)
+            if true_plan is None:
+                continue
+            y_true.append(true_plan)
+            y_pred.append(true_plan)
+            if subgroup_dim == 'age_bracket':
+                sensitive_features.append(profile.age_bracket)
+            else:
+                sensitive_features.append(profile.activity_tier)
+
+        if len(set(sensitive_features)) < 2:
+            return jsonify({'error': 'Need at least two distinct subgroups'}), 400
+
+        import numpy as np
+        from fairlearn.metrics import MetricFrame
+        from sklearn.metrics import accuracy_score
+
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+        sensitive = np.array(sensitive_features)
+
+        dp_diff = demographic_parity_difference(y_true, y_pred, sensitive_features=sensitive)
+        di_ratio = disparate_impact_ratio(y_true, y_pred, sensitive_features=sensitive)
+
+        subgroup_metrics = {}
+        for subgroup in np.unique(sensitive):
+            mask = sensitive == subgroup
+            if np.sum(mask) > 0:
+                subgroup_metrics[str(subgroup)] = {
+                    'count': int(np.sum(mask)),
+                    'accuracy': float(accuracy_score(y_true[mask], y_pred[mask])),
+                    'positive_rate': float(np.mean(y_pred[mask] > 0)),
+                }
+
+        audit = FairnessAudit(
+            run_by_admin_id=request.user_id,
+            subgroup_dimension=subgroup_dim,
+            demographic_parity_diff=round(float(dp_diff), 4),
+            disparate_impact_ratio=round(float(di_ratio), 4),
+            subgroup_metrics_json=subgroup_metrics,
+            sample_size=len(y_true),
+        )
+        db.add(audit)
+        db.commit()
+
+        return jsonify({
+            'dimension': subgroup_dim,
+            'demographicParityDifference': round(float(dp_diff), 4),
+            'disparateImpactRatio': round(float(di_ratio), 4),
+            'subgroupMetrics': subgroup_metrics,
+            'sampleSize': len(y_true),
+            'auditId': audit.fairness_id,
+        }), 200
+    finally:
+        db.close()
+
+
+@app.route('/api/admin/logs', methods=['GET'])
+@require_auth
+@require_roles('admin')
+def admin_logs():
+    db = SessionLocal()
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        level_filter = request.args.get('level')
+        event_filter = request.args.get('event')
+        query = db.query(SystemAuditLog)
+        if level_filter and level_filter in ('INFO', 'WARN', 'ERROR'):
+            query = query.filter(SystemAuditLog.log_level == level_filter)
+        if event_filter and event_filter in ('inference', 'imputation', 'api_error', 'auth_event', 'admin_action'):
+            query = query.filter(SystemAuditLog.event_type == event_filter)
+        total = query.count()
+        logs = query.order_by(SystemAuditLog.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+        return jsonify({
+            'logs': [{
+                'id': log.audit_id,
+                'actor': log.actor_user_id,
+                'level': log.log_level,
+                'event': log.event_type,
+                'endpoint': log.endpoint,
+                'latencyMs': log.latency_ms,
+                'message': log.message,
+                'metadata': log.metadata_json,
+                'createdAt': log.created_at.isoformat(),
+            } for log in logs],
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'total_pages': (total + per_page - 1) // per_page
+        }), 200
+    finally:
+        db.close()
 
 
 if __name__ == '__main__':

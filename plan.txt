@@ -43,27 +43,28 @@ Build the `/business` portal and corresponding Flask routes to fulfill the Busin
 
 ---
 
-## Phase 5: System Admin Governance, Fairness Auditing & Podman Compose *(Next Active Phase)*
+## Phase 5: System Admin Governance, Fairness Auditing & Podman Compose *(Completed)*
 
 Implement the `/admin` governance view and package the entire multi-service stack for deployment:
 
-- [ ] **User & Content Governance:**
-  - [ ] Search and inspect user account details (`GET /api/admin/users`, `GET /api/admin/users/<id>`).
-  - [ ] Review user feedback and AI recommendation clarity/trust ratings (`GET /api/admin/feedback`).
-  - [ ] Approve/reject educational article records (`PATCH /api/admin/articles/<id>/status`) and manage subscription plan metadata (`PUT /api/admin/plans`).
-- [ ] **Algorithmic Fairness & Audit Logs:**
-  - [ ] Integrate `fairlearn` (`GET /api/admin/fairness-audit`) to compute demographic parity difference, disparate impact ratio, and subgroup error rates across age brackets and baseline activity tiers.
-  - [ ] Expose inference latency records, median imputation events, and system error logs (`GET /api/admin/logs`).
-- [ ] **Podman Compose Orchestration (`podman-compose.yml`):**
-  - [ ] Containerize `db` (`mysql:8.0` initialized with `backend/database/schema.sql` and a persistent volume), `backend` (Flask API on port `5000`), and `frontend` (production React build served via Nginx on port `5173`/`80`).
+- [x] **User & Content Governance:**
+  - [x] Search and inspect user account details (`GET /api/admin/users`, `GET /api/admin/users/<id>`).
+  - [x] Review user feedback and AI recommendation clarity/trust ratings (`GET /api/admin/feedback`).
+  - [x] Approve/reject educational article records (`PATCH /api/admin/articles/<id>/status`) and manage subscription plan metadata (`PUT /api/admin/plans`).
+- [x] **Algorithmic Fairness & Audit Logs:**
+  - [x] Integrate `fairlearn` (`GET /api/admin/fairness-audit`) to compute demographic parity difference, disparate impact ratio, and subgroup error rates across age brackets and baseline activity tiers.
+  - [x] Expose inference latency records, median imputation events, and system error logs (`GET /api/admin/logs`).
+- [x] **Podman Compose Orchestration (`podman-compose.yml`):**
+  - [x] Containerize `db` (`mysql:8.0` initialized with `backend/database/schema.sql` and a persistent volume), `backend` (Flask API on port `5000`), and `frontend` (production React build served via Nginx on port `5173`/`80`).
 
 ---
 
 ## Immediate Next Steps
 
-- [ ] **1. Sync Mobile Bundle & Verify Live MySQL:** Run `npm run build && npx cap sync` inside `frontend/` so the Android emulator receives the updated `BusinessInsights` (with CSV/PDF export buttons), and confirm `backend/.env` connects cleanly to `healthy360_db` in MySQL 8.
-- [ ] **2. Begin Phase 5 - System Admin Governance:** Implement `/api/admin/*` endpoints and React Admin Dashboard views:
+- [x] **1. Sync Mobile Bundle & Verify Live MySQL:** Run `npm run build && npx cap sync` inside `frontend/` so the Android emulator receives the updated `BusinessInsights` (with CSV/PDF export buttons), and confirm `backend/.env` connects cleanly to `healthy360_db` in MySQL 8.
+- [x] **2. Complete Phase 5 - System Admin Governance:** Implement `/api/admin/*` endpoints and React Admin Dashboard views:
   - User & Content Governance: `GET /api/admin/users`, `GET /api/admin/users/<id>`, `GET /api/admin/feedback`, `PATCH /api/admin/articles/<id>/status`, `PUT /api/admin/plans`
   - Algorithmic Fairness & Audit Logs: `GET /api/admin/fairness-audit` (fairlearn integration), `GET /api/admin/logs`
   - Podman Compose Orchestration: `podman-compose.yml` with `db` (mysql:8.0), `backend` (Flask on 5000), `frontend` (Nginx on 5173/80)
 - [ ] **3. Documentation & Verification:** Update test suites, verify 38+ passing backend tests, successful frontend build, and document ahead of **Submission 3 (12 Dec 2026)** and **Submission 4 (19 Dec 2026)**.
+- [x] **4. Sync Mobile Bundle for Phase 5:** Run `npm run build && npx cap sync` inside `frontend/` so the Android emulator receives the updated Admin Dashboard.

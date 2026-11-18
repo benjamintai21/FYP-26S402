@@ -26,6 +26,7 @@ export default function Navbar() {
   const tabs = member ? [
     ...APP_TABS,
     ...(user.role === 'premium' ? [{ to: '/premium', label: 'Premium', icon: 'activity' }] : []),
+    ...(user.role === 'admin' ? [{ to: '/admin', label: 'Admin', icon: 'activity' }] : []),
     { to: '/profile', label: 'Profile', icon: 'user' },
   ] : [
     { to: portalPath, label: portalLabel, icon: 'home' },
@@ -62,6 +63,7 @@ export default function Navbar() {
                   <li><NavLink to="/explorer" className={linkClass}>What-If</NavLink></li>
                   <li><NavLink to="/goals" className={linkClass}>Goals</NavLink></li>
                   {user.role === 'premium' && <li><NavLink to="/premium" className={linkClass}>Premium</NavLink></li>}
+                  {user.role === 'admin' && <li><NavLink to="/admin" className={linkClass}>Admin</NavLink></li>}
                 </>
               ) : (
                 <li><NavLink to={portalPath} className={linkClass}>{portalLabel}</NavLink></li>
