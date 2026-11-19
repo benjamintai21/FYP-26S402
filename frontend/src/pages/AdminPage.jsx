@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { getAdminUsers, getAdminUserDetail, getAdminFeedback, patchAdminArticleStatus, putAdminPlans, getAdminFairnessAudit, getAdminLogs } from '../api';
+import { getAdminUsers, getAdminUserDetail, patchAdminUserStatus, getAdminFeedback, patchAdminFeedbackVisibility, patchAdminArticleStatus, putAdminPlans, getAdminFairnessAudit, getAdminLogs } from '../api';
 
 export default function AdminPage() {
   const { user } = useApp();
@@ -76,6 +76,25 @@ export default function AdminPage() {
     } catch (err) { setError(err.message); }
   };
 
+  const toggleUserStatus = async (userId, currentStatus) => {
+    try {
+      const res = await patchAdminUserStatus(userId, !currentStatus);
+      setMessage(res.message);
+      setUsers((prev) => prev.map((u) => (u.user_id === userId ? { ...u, is_active: !currentStatus } : u)));
+      if (userDetail && userDetail.user_id === userId) {
+        setUserDetail((prev) => ({ ...prev, is_active: !currentStatus }));
+      }
+    } catch (err) { setError(err.message); }
+  };
+
+  const toggleFeedbackVisibility = async (feedbackId, currentVisibility) => {
+    try {
+      const res = await patchAdminFeedbackVisibility(feedbackId, !currentVisibility);
+      setMessage(res.message);
+      setFeedback((prev) => prev.map((f) => (f.id === feedbackId ? { ...f, isPublic: !currentVisibility } : f)));
+    } catch (err) { setError(err.message); }
+  };
+
   const updateArticleStatus = async (articleId, status) => {
     try {
       await patchAdminArticleStatus(articleId, status);
@@ -119,13 +138,28 @@ export default function AdminPage() {
             </select>
           </div>
           <table className="admin-table">
-            <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
+            <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
-              {users.map((u) => <tr key={u.id}>
-                <td>{u.id}</td><td>{u.name}</td><td>{u.email}</td>
+              {users.map((u) => <tr key={u.user_id || u.id}>
+                <td>{u.id || (u.user_id ? u.user_id.slice(0, 8) : '-')}</td><td>{u.name}</td><td>{u.email}</td>
                 <td><span className={`role-badge role-${u.role}`}>{u.role}</span></td>
-                <td>{new Date(u.created_at).toLocaleDateString()}</td>
-                <td><button className="btn-outline" onClick={() => viewUserDetail(u.id)}>View</button></td>
+                <td>
+                  <span style={{ color: u.is_active !== false ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                    {u.is_active !== false ? 'Active' : 'Suspended'}
+                  </span>
+                </td>
+                <td style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button className="btn-outline" style={{ padding: '0.25rem 0.5rem' }} onClick={() => viewUserDetail(u.user_id || u.id)}>View</button>
+                  {u.role !== 'admin' && (
+                    <button
+                      className="btn-outline"
+                      style={{ padding: '0.25rem 0.5rem', borderColor: u.is_active !== false ? '#dc2626' : '#16a34a', color: u.is_active !== false ? '#dc2626' : '#16a34a' }}
+                      onClick={() => toggleUserStatus(u.user_id || u.id, u.is_active !== false)}
+                    >
+                      {u.is_active !== false ? 'Suspend' : 'Activate'}
+                    </button>
+                  )}
+                </td>
               </tr>)}
             </tbody>
           </table>
@@ -142,14 +176,26 @@ export default function AdminPage() {
       {tab === 'feedback' && (
         <div>
           <table className="admin-table">
-            <thead><tr><th>ID</th><th>User</th><th>Clarity</th><th>Trust</th><th>Comment</th><th>Public</th><th>Rec ID</th><th>Created</th></tr></thead>
+            <thead><tr><th>ID</th><th>User</th><th>Clarity</th><th>Trust</th><th>Comment</th><th>Public Visibility</th><th>Actions</th></tr></thead>
             <tbody>
               {feedback.map((f) => <tr key={f.id}>
                 <td>{f.id}</td><td>{f.user.name} ({f.user.email})</td>
                 <td>{f.clarity}</td><td>{f.trust}</td>
                 <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.comment || ''}</td>
-                <td>{f.isPublic ? 'Yes' : 'No'}</td><td>{f.recommendationId || 'N/A'}</td>
-                <td>{new Date(f.createdAt).toLocaleString()}</td>
+                <td>
+                  <span style={{ color: f.isPublic ? '#16a34a' : '#6b7280', fontWeight: 600 }}>
+                    {f.isPublic ? 'Public' : 'Hidden'}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    className="btn-outline"
+                    style={{ padding: '0.25rem 0.5rem' }}
+                    onClick={() => toggleFeedbackVisibility(f.id, f.isPublic)}
+                  >
+                    {f.isPublic ? 'Hide' : 'Feature Publicly'}
+                  </button>
+                </td>
               </tr>)}
             </tbody>
           </table>
@@ -254,8 +300,25 @@ export default function AdminPage() {
                 <h3>Account</h3>
                 <p><strong>Email:</strong> {userDetail.email}</p>
                 <p><strong>Role:</strong> {userDetail.role}</p>
-                <p><strong>Created:</strong> {new Date(userDetail.created_at).toLocaleString()}</p>
-                <p><strong>PDPA Consent:</strong> {userDetail.pdpa_consent_at ? new Date(userDetail.pdpa_consent_at).toLocaleString() : 'Not given'}</p>
+                <p>
+                  <strong>Status:</strong>{' '}
+                  <span style={{ color: userDetail.is_active !== false ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                    {userDetail.is_active !== false ? 'Active' : 'Suspended'}
+                  </span>
+                </p>
+                {userDetail.role !== 'admin' && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <button
+                      className="btn-outline"
+                      style={{ borderColor: userDetail.is_active !== false ? '#dc2626' : '#16a34a', color: userDetail.is_active !== false ? '#dc2626' : '#16a34a' }}
+                      onClick={() => toggleUserStatus(userDetail.user_id, userDetail.is_active !== false)}
+                    >
+                      {userDetail.is_active !== false ? 'Suspend Account' : 'Activate Account'}
+                    </button>
+                  </div>
+                )}
+                {userDetail.created_at && <p><strong>Created:</strong> {new Date(userDetail.created_at).toLocaleString()}</p>}
+                <p><strong>PDPA Consent:</strong> {userDetail.pdpa_consent_at ? new Date(userDetail.pdpa_consent_at).toLocaleString() : 'Granted upon registration'}</p>
               </div>
               {userDetail.profile && (
                 <div className="card">

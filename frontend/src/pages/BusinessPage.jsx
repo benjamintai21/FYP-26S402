@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { deleteBusinessItem, getBusinessItems, saveBusinessItem } from '../api';
+import { deleteBusinessItem, getBusinessItems, saveBusinessItem, getBusinessEventRegistrations } from '../api';
 import BusinessInsights from '../components/BusinessInsights';
 
 const INITIAL = {
@@ -15,6 +15,7 @@ export default function BusinessPage() {
   const [form, setForm] = useState(INITIAL.services);
   const [editing, setEditing] = useState(null);
   const [items, setItems] = useState([]);
+  const [attendeesData, setAttendeesData] = useState(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -58,6 +59,13 @@ export default function BusinessPage() {
       setMessage(result.message);
     } catch (err) { setError(err.message); }
   };
+  const viewAttendees = async (eventItem) => {
+    setError('');
+    try {
+      const data = await getBusinessEventRegistrations(eventItem.id);
+      setAttendeesData(data);
+    } catch (err) { setError(err.message); }
+  };
   return (
     <main className="dashboard-container">
       <header className="page-header"><h1>Business portal</h1><p>Welcome, {user.name}. Manage your published offerings.</p></header>
@@ -96,14 +104,55 @@ export default function BusinessPage() {
           {items.map((item) => <div key={item.id} className="form-group">
             <strong>{item.title}</strong>
             <span>{resource === 'events' ? `${item.dateTime} · ${item.venue} · ${item.status}` : resource === 'services' ? `${item.schedule} · ${item.price}` : item.type}</span>
-            <div>{(resource !== 'events' || item.status === 'scheduled') && <>
-              <button type="button" className="btn-outline" onClick={() => { setForm(item); setEditing(item.id); }}>Edit</button>{' '}
-              <button type="button" className="btn-outline" onClick={() => remove(item)}>{resource === 'events' ? 'Cancel event' : 'Remove'}</button>
-            </>}</div>
+            <div>
+              {resource === 'events' && (
+                <button type="button" className="btn-outline" style={{ marginRight: '0.5rem' }} onClick={() => viewAttendees(item)}>Attendees</button>
+              )}
+              {(resource !== 'events' || item.status === 'scheduled') && <>
+                <button type="button" className="btn-outline" onClick={() => { setForm(item); setEditing(item.id); }}>Edit</button>{' '}
+                <button type="button" className="btn-outline" onClick={() => remove(item)}>{resource === 'events' ? 'Cancel event' : 'Remove'}</button>
+              </>}
+            </div>
           </div>)}
         </section>
       </div>
       <BusinessInsights />
+
+      {attendeesData && (
+        <div className="modal-overlay" onClick={() => setAttendeesData(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Registrations: {attendeesData.event.title}</h2>
+            <p className="sub-text">
+              Capacity: {attendeesData.count} / {attendeesData.event.capacity} registered
+            </p>
+            <div style={{ margin: '1rem 0' }}>
+              {attendeesData.registrations.length === 0 ? (
+                <p>No participants registered yet.</p>
+              ) : (
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Participant Name</th>
+                      <th>Email</th>
+                      <th>Registered Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attendeesData.registrations.map((reg) => (
+                      <tr key={reg.id}>
+                        <td>{reg.user.name}</td>
+                        <td>{reg.user.email}</td>
+                        <td>{reg.registeredAt ? new Date(reg.registeredAt).toLocaleString() : 'Confirmed'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <button type="button" className="submit-btn" onClick={() => setAttendeesData(null)}>Close</button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -20,6 +20,9 @@ PHRASES = {
     ("fatigue", "good"): "your fatigue level of {v} is low",
     ("fatigue", "average"): "your fatigue level of {v} is moderate",
     ("fatigue", "poor"): "your fatigue level of {v} is high",
+    ("yesterday_training_load", "good"): "yesterday's session was light",
+    ("yesterday_training_load", "average"): "yesterday's session was moderate",
+    ("yesterday_training_load", "poor"): "yesterday's workout was high-strain",
 }
 
 

@@ -1,12 +1,17 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { updateSubscription, saveOnboarding } from '../api';
 import Icon from '../components/Icon';
 import { homeForRole } from '../roles';
 
 export default function RegisterPage() {
-  const { register, loading } = useApp();
+  const { register, refreshUser, loading } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const intendedPlan = searchParams.get('plan');
+  const intendedCycle = searchParams.get('cycle') || 'monthly';
+
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'registered', consent: false });
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -25,6 +30,30 @@ export default function RegisterPage() {
     }
     try {
       const result = await register(form);
+      if (intendedPlan === 'premium' && result.user.role === 'registered') {
+        try {
+          await updateSubscription('start', intendedCycle);
+          await refreshUser();
+        } catch {
+          // If subscription fails, they remain registered and can retry in subscription page
+        }
+      }
+
+      // If user came through the pre-signup questionnaire, auto-commit their baseline
+      const pendingBaselineStr = localStorage.getItem('h360_pending_baseline');
+      if (pendingBaselineStr && result.user.role === 'registered') {
+        try {
+          const pendingData = JSON.parse(pendingBaselineStr);
+          await saveOnboarding(pendingData);
+          await refreshUser();
+          localStorage.removeItem('h360_pending_baseline');
+          navigate('/dashboard', { replace: true });
+          return;
+        } catch {
+          // Fall through to onboarding
+        }
+      }
+
       navigate(result.user.role === 'registered' ? '/onboarding' : homeForRole(result.user.role), { replace: true });
     } catch (err) {
       setError(err.message);
@@ -42,6 +71,11 @@ export default function RegisterPage() {
           <h1>Create your account</h1>
           <p>Choose a member or business account to get started.</p>
         </div>
+        {intendedPlan === 'premium' && (
+          <div style={{ background: '#ecfdf5', border: '1px solid #10b981', color: '#065f46', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
+            🌟 <strong>Healthy360 Plus ({intendedCycle === 'annual' ? 'Annual Plan · Save 20%' : 'Monthly Plan'}) Selected</strong>: Create your account below to activate your premium access and continue directly to lifestyle onboarding.
+          </div>
+        )}
         {error && <div className="alert-error" role="alert">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -83,9 +117,11 @@ export default function RegisterPage() {
           </div>
           <label className="consent">
             <input type="checkbox" name="consent" required checked={form.consent} onChange={handleChange} />
-            <span>{form.role === 'registered'
-              ? 'I consent to Healthy360 collecting and processing my lifestyle data under the PDPA. I understand this is non-clinical guidance.'
-              : 'I consent to Healthy360 processing my account information to provide business access.'}</span>
+            <span>{form.role === 'registered' ? (
+              <>I consent to Healthy360 collecting and processing my lifestyle data under the <Link to="/privacy" target="_blank" rel="noopener noreferrer">PDPA Terms & Privacy Policy</Link>. I understand this is non-clinical guidance.</>
+            ) : (
+              <>I consent to Healthy360 processing my account information under the <Link to="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</Link> to provide business access.</>
+            )}</span>
           </label>
           <button type="submit" className="submit-btn auth-submit" disabled={loading}>
             {loading ? 'Creating your account...' : <>Create account <Icon name="arrow" size={19} /></>}

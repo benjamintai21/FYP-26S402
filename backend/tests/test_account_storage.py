@@ -6,7 +6,8 @@ import pytest
 
 from app import app
 from database import SessionLocal
-from models import DailyLog, Feedback, Recommendation, User, UserProfile, SubscriptionPlan, UserSubscription, Consent
+from models import DailyLog, Feedback, Recommendation, User, UserProfile, SubscriptionPlan, UserSubscription, Consent, BusinessEvent, EventRegistration
+from auth import create_access_token
 
 
 def register(client, role='registered'):
@@ -586,3 +587,349 @@ def test_premium_only_products_require_premium_role():
     reg_headers = {'Authorization': f"Bearer {registered_member['token']}"}
     blocked = client.post(f"/api/products/{premium_only[0]['id']}/purchase", headers=reg_headers)
     assert blocked.status_code == 403
+
+
+def test_public_plans_and_pricing():
+    client = app.test_client()
+    res = client.get('/api/plans/public')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert 'plans' in data
+    tier_codes = [p['tierCode'] for p in data['plans']]
+    assert 'free' in tier_codes or 'premium' in tier_codes
+
+
+def test_admin_suspend_user_and_moderate_feedback():
+    client = app.test_client()
+    _, member = register(client)
+    member_headers = {'Authorization': f"Bearer {member['token']}"}
+
+    # Submit feedback from member
+    fb_res = client.post('/api/feedback', headers=member_headers, json={'clarity': 5, 'trust': 5, 'comment': 'Great', 'public': False})
+    assert fb_res.status_code == 201
+
+    # Create admin user & token
+    _, admin_reg = register(client)
+    db = SessionLocal()
+    try:
+        admin_user = db.query(User).filter_by(user_id=admin_reg['user']['user_id']).one()
+        admin_user.role = 'admin'
+        db.commit()
+        admin_token = create_access_token(admin_user.user_id, admin_user.session_version)
+        admin_headers = {'Authorization': f"Bearer {admin_token}"}
+
+        # Admin gets feedback list
+        fb_list = client.get('/api/admin/feedback', headers=admin_headers)
+        assert fb_list.status_code == 200
+        items = fb_list.get_json()['feedback']
+        target_fb = next(f for f in items if f['user']['id'] == member['user']['user_id'])
+        assert target_fb['isPublic'] is False
+
+        # Admin toggles feedback visibility to public
+        vis_res = client.patch(f"/api/admin/feedback/{target_fb['id']}/visibility", headers=admin_headers, json={'isPublic': True})
+        assert vis_res.status_code == 200
+        assert vis_res.get_json()['feedback']['isPublic'] is True
+
+        # Now public endpoint shows it
+        pub_fb = client.get('/api/feedback/public').get_json()['feedback']
+        assert any(f['id'] == target_fb['id'] for f in pub_fb)
+
+        # Admin suspends member
+        suspend_res = client.patch(f"/api/admin/users/{member['user']['user_id']}/status", headers=admin_headers, json={'is_active': False})
+        assert suspend_res.status_code == 200
+        assert suspend_res.get_json()['user']['is_active'] is False
+
+        # Suspended member cannot call authenticated endpoints
+        assert client.get('/api/me', headers=member_headers).status_code == 401
+
+        # Admin reactivates member
+        reactivate = client.patch(f"/api/admin/users/{member['user']['user_id']}/status", headers=admin_headers, json={'is_active': True})
+        assert reactivate.status_code == 200
+        assert reactivate.get_json()['user']['is_active'] is True
+    finally:
+        db.close()
+
+
+def test_business_profile_and_event_registrations():
+    client = app.test_client()
+    _, biz = register(client, role='business')
+    biz_headers = {'Authorization': f"Bearer {biz['token']}"}
+
+    # Update business profile
+    update_res = client.put('/api/profile', headers=biz_headers, json={'businessName': 'FitPro Academy'})
+    assert update_res.status_code == 200
+    assert update_res.get_json()['user']['businessName'] == 'FitPro Academy'
+
+    # Create event
+    event_payload = {
+        'title': 'Outdoor Boot Camp',
+        'description': 'High energy fitness training session.',
+        'venue': 'Marina Bay Sands',
+        'capacity': 25,
+        'dateTime': '2026-12-01T08:00',
+    }
+    create_evt = client.post('/api/business/events', headers=biz_headers, json=event_payload)
+    assert create_evt.status_code == 201
+    event_id = create_evt.get_json()['item']['id']
+
+    # Registered member reserves the event
+    _, member = register(client)
+    member_headers = {'Authorization': f"Bearer {member['token']}"}
+    reserve_res = client.post(f'/api/marketplace/events/{event_id}/reserve', headers=member_headers)
+    assert reserve_res.status_code == 201
+
+    # Business user views event registrations
+    reg_list_res = client.get(f'/api/business/events/{event_id}/registrations', headers=biz_headers)
+    assert reg_list_res.status_code == 200
+    reg_data = reg_list_res.get_json()
+    assert reg_data['count'] == 1
+    assert reg_data['registrations'][0]['user']['name'] == 'Test User'
+
+    # Check that GET /api/marketplace reflects is_reserved=True and spots_left
+    market_res = client.get('/api/marketplace', headers=member_headers)
+    assert market_res.status_code == 200
+    events = market_res.get_json()['events']
+    assert any(e['id'] == event_id and e['is_reserved'] is True and e['spots_left'] == 24 for e in events)
+
+    # Member cancels reservation
+    cancel_res = client.post(f'/api/marketplace/events/{event_id}/cancel', headers=member_headers)
+    assert cancel_res.status_code == 200
+
+    # Marketplace now reflects is_reserved=False and spots_left restored to 25
+    market_after = client.get('/api/marketplace', headers=member_headers)
+    events_after = market_after.get_json()['events']
+    assert any(e['id'] == event_id and e['is_reserved'] is False and e['spots_left'] == 25 for e in events_after)
+
+
+def test_subscription_purchase_supports_annual_cycle_and_self_heals():
+    client = app.test_client()
+    _, member = register(client)
+    member_headers = {'Authorization': f"Bearer {member['token']}"}
+
+    # Test annual cycle purchase with self-healing
+    sub = client.post('/api/subscription', json={'action': 'start', 'billing_cycle': 'annual'}, headers=member_headers)
+    assert sub.status_code == 200
+    data = sub.get_json()
+    assert data['role'] == 'premium'
+    assert data['subscription']['status'] == 'active'
+    assert len(data['receipts']) >= 1
+    assert data['receipts'][0]['amount_cents'] == 9500
+    assert 'REC-' in data['receipts'][0]['receipt_no']
+
+    # Check that me endpoint reflects premium
+    assert client.get('/api/me', headers=member_headers).get_json()['user']['role'] == 'premium'
+
+
+def test_onboarding_assessment_uses_ml_model_and_persists_goals():
+    client = app.test_client()
+
+    # 1. Test public ML assessment without auth (Pre-signup assessment)
+    quiz_payload = {
+        'objective': 'Build sustainable daily energy & beat mid-day crashes',
+        'motivation': 'I want more vibrant energy for family and work',
+        'goals': {
+            'dailySteps': 8500,
+            'sleepHours': 7.5,
+            'workoutType': 'Walking & Cardio',
+            'availableMinutes': 40
+        },
+        'ratings': {
+            'energyLevel': 4,
+            'stressLevel': 2,
+            'habitConsistency': 4,
+            'recoveryQuality': 4
+        },
+        'ageBracket': '30-44',
+        'activityLevel': 'moderate',
+        'baseline': {
+            'sleep': 7.5,
+            'heartRate': 65,
+            'steps': 8500,
+            'fatigue': 3.0
+        }
+    }
+
+    assess_res = client.post('/api/onboarding/assess', json=quiz_payload)
+    assert assess_res.status_code == 200
+    plan = assess_res.get_json()
+    assert 'recommendation' in plan
+    assert 'plan_level' in plan
+    assert 'explanation' in plan
+    assert 'shap_factors' in plan
+    assert 'what_if' in plan
+    assert 'personalized_profile' in plan
+    assert plan['personalized_profile']['objective'] == quiz_payload['objective']
+    assert len(plan['personalized_profile']['roadmap']) == 3
+    assert plan['calibrated_baseline']['steps'] == 8500
+
+    # 2. Test saving onboarding with questionnaire preferences for an authenticated user
+    _, member = register(client)
+    member_headers = {'Authorization': f"Bearer {member['token']}"}
+
+    save_payload = {
+        'ageBracket': '30-44',
+        'activityLevel': 'moderate',
+        'baseline': {
+            'sleep': 7.5,
+            'heartRate': 65,
+            'steps': 8500,
+            'fatigue': 3.0
+        },
+        'goals': quiz_payload['goals']
+    }
+
+    save_res = client.post('/api/onboarding', headers=member_headers, json=save_payload)
+    assert save_res.status_code == 200
+    user_data = save_res.get_json()['user']
+    assert user_data['onboarded'] is True
+    assert user_data['baseline']['steps'] == 8500
+
+    # Verify auto-created goals
+    goals_res = client.get('/api/goals', headers=member_headers)
+    assert goals_res.status_code == 200
+    goals = goals_res.get_json()['goals']
+    assert len(goals) >= 1
+    assert any(g['title'] == 'Daily Step Target' for g in goals)
+
+
+def test_member_profile_update_supports_baselines_and_demographics():
+    client = app.test_client()
+    _, member = register(client)
+    headers = {'Authorization': f"Bearer {member['token']}"}
+
+    # Initial onboarding
+    client.post('/api/onboarding', headers=headers, json={
+        'ageBracket': '18-29',
+        'activityLevel': 'light',
+        'baseline': {'sleep': 7.0, 'heartRate': 75, 'steps': 6000, 'fatigue': 5.0}
+    })
+
+    # Update profile with new display name, age bracket, and improved baselines
+    update_payload = {
+        'displayName': 'AeroRunnerSG',
+        'name': 'Jason Tan',
+        'ageBracket': '30-44',
+        'activityLevel': 'very_active',
+        'baseline': {
+            'sleep': 8.0,
+            'heartRate': 58,
+            'steps': 11000,
+            'fatigue': 2.5
+        }
+    }
+    update_res = client.put('/api/profile', headers=headers, json=update_payload)
+    assert update_res.status_code == 200
+    updated_user = update_res.get_json()['user']
+
+    assert updated_user['displayName'] == 'AeroRunnerSG'
+    assert updated_user['name'] == 'Jason Tan'
+    assert updated_user['ageBracket'] == '30-44'
+    assert updated_user['activityLevel'] == 'very_active'
+    assert updated_user['baseline']['sleep'] == 8.0
+    assert updated_user['baseline']['heartRate'] == 58
+    assert updated_user['baseline']['steps'] == 11000
+    assert updated_user['baseline']['fatigue'] == 2.5
+
+    # Verify GET /api/profile reflects the changes
+    get_res = client.get('/api/profile', headers=headers)
+    assert get_res.status_code == 200
+    profile_data = get_res.get_json()['user']
+    assert profile_data['displayName'] == 'AeroRunnerSG'
+    assert profile_data['baseline']['heartRate'] == 58
+
+    # Verify invalid values are rejected
+    bad_res = client.put('/api/profile', headers=headers, json={'ageBracket': 'invalid_bracket'})
+    assert bad_res.status_code == 400
+
+    bad_hr = client.put('/api/profile', headers=headers, json={'baseline': {'heartRate': 200}})
+    assert bad_hr.status_code == 400
+
+
+def test_activity_logs_support_workout_type_calories_and_intensity():
+    client = app.test_client()
+    _, registered = register(client)
+    headers = {'Authorization': f"Bearer {registered['token']}"}
+
+    payload = {
+        'title': 'Morning Marina Run',
+        'date': date.today().isoformat(),
+        'duration': 45,
+        'notes': 'Felt great in Zone 3 pacing.',
+        'workout_type': 'running',
+        'calories': 420,
+        'distance_km': 6.25,
+        'intensity': 'vigorous',
+    }
+    res = client.post('/api/activities', json=payload, headers=headers)
+    assert res.status_code == 201
+    activities = res.get_json()['activities']
+    assert len(activities) == 1
+    act = activities[0]
+    assert act['title'] == 'Morning Marina Run'
+    assert act['duration'] == 45
+    assert act['notes'] == 'Felt great in Zone 3 pacing.'
+    assert act['workout_type'] == 'running'
+    assert act['calories'] == 420
+    assert act['distance_km'] == 6.25
+    assert act['intensity'] == 'vigorous'
+
+    # Verify GET returns unpacked metadata
+    get_res = client.get('/api/activities', headers=headers)
+    assert get_res.status_code == 200
+    get_act = get_res.get_json()['activities'][0]
+    assert get_act['workout_type'] == 'running'
+    assert get_act['calories'] == 420
+    assert get_act['distance_km'] == 6.25
+    assert get_act['intensity'] == 'vigorous'
+
+
+def test_logged_workout_strain_feeds_back_into_next_day_shap_prediction():
+    client = app.test_client()
+    _, registered = register(client)
+    headers = {'Authorization': f"Bearer {registered['token']}"}
+
+    # 1. User completes and logs a high-strain session (45 min @ RPE 8)
+    activity_payload = {
+        'title': 'High-Intensity Interval Session',
+        'date': date.today().isoformat(),
+        'duration': 45,
+        'rpe_score': 8,
+        'training_load': 360,
+        'workout_type': 'hiit',
+        'intensity': 'vigorous',
+        'adherence_status': 'completed',
+        'notes': 'All-out sprints on track.',
+    }
+    act_res = client.post('/api/activities', json=activity_payload, headers=headers)
+    assert act_res.status_code == 201
+
+    # 2. User checks in next morning with borderline/compromised recovery (5.5 hrs sleep)
+    metrics_payload = {
+        'sleep': 5.5,
+        'heartRate': 76,
+        'steps': 4500,
+        'fatigue': 6.0,
+    }
+    log_res = client.post('/api/log-metrics', json=metrics_payload, headers=headers)
+    assert log_res.status_code == 200
+    data = log_res.get_json()
+
+    # Closed-loop verification:
+    # Model recommends Active Recovery
+    assert data['plan_level'] == 0
+    assert 'Active Recovery' in data['recommendation']
+
+    # SHAP factors contain yesterday_training_load
+    factor_keys = [f['key'] for f in data['shap_factors']]
+    assert 'yesterday_training_load' in factor_keys
+
+    # SHAP factor sum still normalizes to 100%
+    total_shap = sum(abs(f['impact']) for f in data['shap_factors'])
+    assert total_shap == pytest.approx(100.0, abs=0.5)
+
+    # Explanation text references yesterday's high-strain session
+    assert "yesterday's high-strain session (45 min @ RPE 8)" in data['explanation']
+
+
+
+

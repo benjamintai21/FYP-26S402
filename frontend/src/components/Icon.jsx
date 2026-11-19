@@ -19,6 +19,16 @@ const PATHS = {
   target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" /></>,
   user: <><circle cx="12" cy="8" r="4" /><path d="M5 21a7 7 0 0 1 14 0" /></>,
   'shopping-bag': <><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1 0 8h-8a4 4 0 0 1 0-8z" /></>,
+  check: <><polyline points="20 6 9 17 4 12" /></>,
+  'credit-card': <><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></>,
+  refresh: <><path d="M23 4v6h-6" /><path d="M1 20v-6h6" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></>,
+  play: <><polygon points="5 3 19 12 5 21 5 3" fill="currentColor" /></>,
+  pause: <><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" /><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" /></>,
+  stop: <><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" /></>,
+  clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
+  flame: <><path d="M12 2c-.6 2.4-3 4.2-3 7a5 5 0 0 0 10 0c0-2.8-2.4-4.6-3-7-1 2-2 3-4 0Z" /><path d="M12 12c-1 1-1.5 2-1.5 3a2.5 2.5 0 0 0 5 0c0-1-.5-2-1.5-3-.5.8-1.5.8-2 0Z" /></>,
+  filter: <><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></>,
+  trash: <><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>,
 };
 
 export default function Icon({ name, size = 20, className }) {

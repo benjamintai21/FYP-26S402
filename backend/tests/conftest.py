@@ -7,7 +7,7 @@ os.environ.setdefault('JWT_SECRET_KEY', 'test-only-secret-key-at-least-32-bytes'
 import pytest
 
 from database import SessionLocal, init_db
-from models import Product
+from models import Product, SubscriptionPlan
 
 
 SEED_PRODUCTS = [
@@ -42,7 +42,10 @@ def seed_products():
         if db.query(Product).count() == 0:
             for data in SEED_PRODUCTS:
                 db.add(Product(**data))
-            db.commit()
+        if db.query(SubscriptionPlan).count() == 0:
+            db.add(SubscriptionPlan(tier_code='free', plan_name='Healthy360 Core', price_monthly=0.00, currency='SGD', benefits_json=['Daily Recommendations', 'Basic SHAP Factors']))
+            db.add(SubscriptionPlan(tier_code='premium', plan_name='Healthy360 Plus', price_monthly=9.90, currency='SGD', benefits_json=['Personalized Workout & Meal Plans', 'What-If Explorer']))
+        db.commit()
     finally:
         db.close()
     yield

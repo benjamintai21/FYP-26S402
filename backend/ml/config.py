@@ -19,6 +19,7 @@ NORMS = {
     "heartRate": (70.0, 3.0, False),
     "steps": (7500.0, 1000.0, True),
     "fatigue": (5.0, 0.5, False),
+    "yesterday_training_load": (150.0, 50.0, False),
 }
 
 PLANS = {
@@ -37,6 +38,7 @@ DISPLAY_NAMES = {
     "heartRate": "Resting HR",
     "steps": "Steps",
     "fatigue": "Fatigue",
+    "yesterday_training_load": "Yesterday's Training Load",
 }
 
 
@@ -47,4 +49,6 @@ def display_value(feature, value):
         return f"{value:g} bpm"
     if feature == "steps":
         return f"{int(value):,}"
+    if feature == "yesterday_training_load":
+        return f"{int(value)} load"
     return f"{int(value)}/10"

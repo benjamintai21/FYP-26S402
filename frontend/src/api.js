@@ -1,7 +1,21 @@
-const isAndroid = /Android/i.test(navigator.userAgent);
-export const API_BASE = isAndroid
-  ? 'http://10.0.2.2:5000/api'
-  : 'http://localhost:5000/api';
+const getApiBase = () => {
+  if (typeof window === 'undefined') return 'http://localhost:5000/api';
+  // Only route to Android emulator host loopback (10.0.2.2) if running in a native Capacitor Android app
+  // or explicitly loaded from 10.0.2.2. Do NOT route to 10.0.2.2 in desktop browser responsive/emulation mode.
+  const isCapacitor = window.location.protocol === 'capacitor:' || Boolean(window.Capacitor?.isNativePlatform?.());
+  if (isCapacitor && /Android/i.test(navigator.userAgent)) {
+    return 'http://10.0.2.2:5000/api';
+  }
+  if (window.location.hostname === '10.0.2.2') {
+    return 'http://10.0.2.2:5000/api';
+  }
+  if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && !isCapacitor) {
+    return `http://${window.location.hostname}:5000/api`;
+  }
+  return 'http://localhost:5000/api';
+};
+
+export const API_BASE = getApiBase();
 
 const getToken = () => localStorage.getItem('h360_token');
 
@@ -56,6 +70,10 @@ export async function getMe() {
 
 export async function saveOnboarding(profile) {
   return apiCall('/onboarding', { method: 'POST', body: JSON.stringify(profile) });
+}
+
+export async function assessOnboarding(payload) {
+  return apiCall('/onboarding/assess', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 export async function changePassword(currentPassword, newPassword) {
@@ -134,13 +152,16 @@ export const saveBusinessItem = (resource, item, id) => apiCall(id ? `/business/
 export const deleteBusinessItem = (resource, id) => apiCall(`/business/${resource}/${id}`, { method: 'DELETE' });
 export const getMarketplace = () => apiCall('/marketplace', { method: 'GET' });
 export const reserveOffering = (resource, id) => apiCall(`/marketplace/${resource}/${id}/reserve`, { method: 'POST' });
+export const cancelOfferingReservation = (resource, id) => apiCall(`/marketplace/${resource}/${id}/cancel`, { method: 'POST' });
 export const getEventNotifications = () => apiCall('/event-notifications', { method: 'GET' });
 export const getPublicFeedback = () => apiCall('/feedback/public', { method: 'GET' });
 export const submitFeedback = (feedback) => apiCall('/feedback', { method: 'POST', body: JSON.stringify(feedback) });
 export const getSubscription = () => apiCall('/subscription', { method: 'GET' });
-export const updateSubscription = (action) => apiCall('/subscription', { method: 'POST', body: JSON.stringify({ action }) });
+export const getPublicPlans = () => apiCall('/plans/public', { method: 'GET' });
+export const updateSubscription = (action, billingCycle = 'monthly') => apiCall('/subscription', { method: 'POST', body: JSON.stringify({ action, billing_cycle: billingCycle }) });
 export const getPremiumPlans = () => apiCall('/premium/plans', { method: 'GET' });
-export const generatePremiumPlan = (type) => apiCall('/premium/plans', { method: 'POST', body: JSON.stringify({ type }) });
+export const generatePremiumPlan = (type, options = {}) => apiCall('/premium/plans', { method: 'POST', body: JSON.stringify({ type, ...options }) });
+export const deletePremiumPlan = (planId) => apiCall(`/premium/plans/${planId}`, { method: 'DELETE' });
 export const getPremiumArticles = () => apiCall('/articles', { method: 'GET' });
 export const getGoalInsights = () => apiCall('/premium/goal-insights', { method: 'GET' });
 export const getProducts = () => apiCall('/products', { method: 'GET' });
@@ -163,6 +184,7 @@ export const leaveCohort = (id) => apiCall(`/cohorts/${id}/participation`, { met
 export const getActivities = () => apiCall('/activities', { method: 'GET' });
 export const saveActivity = (activity) => apiCall('/activities', { method: 'POST', body: JSON.stringify(activity) });
 export const deleteActivity = (id) => apiCall(`/activities/${id}`, { method: 'DELETE' });
+export const getBusinessEventRegistrations = (eventId) => apiCall(`/business/events/${eventId}/registrations`, { method: 'GET' });
 
 export const getAdminUsers = (page = 1, perPage = 20, role) => {
   const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
@@ -170,7 +192,9 @@ export const getAdminUsers = (page = 1, perPage = 20, role) => {
   return apiCall(`/admin/users?${params.toString()}`, { method: 'GET' });
 };
 export const getAdminUserDetail = (userId) => apiCall(`/admin/users/${userId}`, { method: 'GET' });
+export const patchAdminUserStatus = (userId, isActive) => apiCall(`/admin/users/${userId}/status`, { method: 'PATCH', body: JSON.stringify({ is_active: isActive }) });
 export const getAdminFeedback = (page = 1, perPage = 50) => apiCall(`/admin/feedback?page=${page}&per_page=${perPage}`, { method: 'GET' });
+export const patchAdminFeedbackVisibility = (feedbackId, isPublic) => apiCall(`/admin/feedback/${feedbackId}/visibility`, { method: 'PATCH', body: JSON.stringify({ isPublic }) });
 export const patchAdminArticleStatus = (articleId, status) => apiCall(`/admin/articles/${articleId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
 export const putAdminPlans = (data) => apiCall('/admin/plans', { method: 'PUT', body: JSON.stringify(data) });
 export const getAdminFairnessAudit = (dimension = 'age_bracket') => apiCall(`/admin/fairness-audit?dimension=${dimension}`, { method: 'GET' });

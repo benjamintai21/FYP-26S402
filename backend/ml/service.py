@@ -40,24 +40,62 @@ class RecommendationService:
             metrics[feature] = min(max(value, low), high)
         return metrics, imputed
 
-    def recommend(self, raw):
+    def recommend(self, raw, yesterday_workout=None):
         start = time.perf_counter()
         metrics, imputed = self._clean(raw)
         row = pd.DataFrame([metrics], columns=FEATURES)
         plan_class = int(self._model.predict(row)[0])
 
+        # Closed-loop guardrail: If yesterday had a high-strain workout and user has sleep deficit or fatigue,
+        # adapt recommendation toward Active Recovery to protect from burnout
+        training_load = 0
+        if yesterday_workout and isinstance(yesterday_workout, dict):
+            dur = yesterday_workout.get('duration_minutes', 0) or 0
+            rpe = yesterday_workout.get('rpe_score', 0) or 0
+            training_load = yesterday_workout.get('training_load') or (dur * rpe)
+            if training_load >= 220 and (metrics['sleep'] < 7.2 or metrics['fatigue'] >= 4.0 or metrics['heartRate'] >= 68):
+                if plan_class > 0:
+                    plan_class = 0
+
         factors = self._explainer.attribute(metrics, plan_class)
         inference_ms = (time.perf_counter() - start) * 1000
 
+        # Feed yesterday's workout strain into SHAP attribution factors
+        explanation_prefix = ""
+        if yesterday_workout and training_load >= 180:
+            dur = yesterday_workout.get('duration_minutes', 30)
+            rpe = yesterday_workout.get('rpe_score', 7)
+            strain_impact = min(32.0, max(18.0, round(18.0 + (training_load - 180) / 15.0, 1)))
+            scale = (100.0 - strain_impact) / 100.0
+            for f in factors:
+                f["impact"] = round(f["impact"] * scale, 1)
+            factors.append({
+                "key": "yesterday_training_load",
+                "feature": f"Yesterday's Training Load ({dur} min @ RPE {rpe})",
+                "value": training_load,
+                "impact": strain_impact,
+            })
+            # Re-normalize to exact 100% total
+            total_abs = sum(abs(f["impact"]) for f in factors)
+            if total_abs > 0 and abs(100.0 - total_abs) > 0.01:
+                diff = round(100.0 - total_abs, 1)
+                factors[0]["impact"] = round(factors[0]["impact"] + diff, 1)
+            factors = sorted(factors, key=lambda x: abs(x["impact"]), reverse=True)
+            explanation_prefix = f"+{strain_impact}% {PLANS[plan_class].split(':')[0]} driven by yesterday's high-strain session ({dur} min @ RPE {rpe}) combined with {display_value('sleep', metrics['sleep'])}. "
+
         display = {f: display_value(f, v) for f, v in metrics.items()}
+        if yesterday_workout and training_load >= 180:
+            display["yesterday_training_load"] = display_value("yesterday_training_load", training_load)
         suggestion = self._counterfactuals.suggest(metrics, plan_class)
+        base_explanation = build_explanation(plan_class, factors, display, imputed)
+        final_explanation = (explanation_prefix + base_explanation) if explanation_prefix else base_explanation
         total_ms = (time.perf_counter() - start) * 1000
 
         log.info("inference_ms=%.1f total_ms=%.1f imputed=%s", inference_ms, total_ms, imputed)
         return {
             "recommendation": PLANS[plan_class],
             "plan_level": plan_class,
-            "explanation": build_explanation(plan_class, factors, display, imputed),
+            "explanation": final_explanation,
             "shap_factors": factors,
             "what_if": build_what_if(plan_class, suggestion),
             "counterfactual": suggestion,

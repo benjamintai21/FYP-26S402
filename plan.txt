@@ -119,11 +119,116 @@ Change subscription logic so users must purchase a subscription product before b
 - [x] **Tests (`backend/tests/test_account_storage.py`):** Rewrote `test_subscription_purchase_promotes_to_premium` and updated `test_premium_only_products_require_premium_role` to reflect purchase-first flow. All **27 backend tests pass**.
 - [x] **Verification:** Backend test suite (27 passing) and frontend `npm run build` both pass.
 
+---
+
+## Phase 11: User Story Gap Remediation, PDPA Privacy & Admin Governance *(Completed)*
+
+Comprehensive audit of all 60 user stories against implemented endpoints and pages, fixing ORM models, filling remaining feature gaps, and expanding governance:
+
+- [x] **ORM Model Bug Fixes (`backend/models.py`, `backend/app.py`):**
+  - Added missing `SystemAuditLog` and `FairnessAudit` declarative models to resolve runtime errors during admin audit routes.
+  - Added `registered_at` timestamp to `EventRegistration` and relationship on `UserSubscription.plan`.
+- [x] **Public Pricing & PDPA Transparency (Unregistered User Stories):**
+  - Added `GET /api/plans/public` endpoint returning active subscription plans and benefits without authentication.
+  - Created `PrivacyPage.jsx` (`/privacy`) detailing PDPA data governance, non-clinical disclaimers, identity isolation, and DPO contact.
+  - Enhanced `HomePage.jsx` with an interactive "Transparent Plans & Pricing" section and footer privacy links.
+  - Integrated PDPA terms review link into `RegisterPage.jsx` consent agreement.
+- [x] **Admin Governance & Content Moderation (System Admin Stories):**
+  - Implemented `PATCH /api/admin/users/<user_id>/status` to activate/suspend user accounts and invalidate revoked sessions.
+  - Implemented `PATCH /api/admin/feedback/<feedback_id>/visibility` allowing admins to feature or hide feedback on the public landing page.
+  - Updated `AdminPage.jsx` with account suspension controls, status indicators, and feedback visibility moderation toggles.
+- [x] **Business Portal Enhancements (Business User Stories):**
+  - Implemented `GET /api/business/events/<event_id>/registrations` and attendee modal in `BusinessPage.jsx` to view registered participants.
+  - Extended `/api/profile` PUT endpoint and `ProfileEditPage.jsx` to support business / brand name updates.
+- [x] **User Story Documentation (`backend/database/userstories.txt`):**
+  - Updated and expanded story catalog covering all roles (Unregistered, Registered, Premium, Business, Admin) with clean sectioning.
+- [x] **Verification:**
+  - Expanded test suite to **44 passing backend tests** (`pytest` passing 44/44 in ~9s).
+  - Clean frontend production build (`npm run build` passing with zero warnings/errors).
+
+---
+
+## Phase 12: Purchase Process Revamp & Resilient Auto-Seeding *(Completed)*
+
+Complete overhaul of the purchase and subscription process modeled after premier consumer fitness and health apps (e.g. Strava, WHOOP, MyFitnessPal, Apple Fitness+), while resolving the root cause of the 503 subscription availability error:
+
+- [x] **Resilient Auto-Seeding Pipeline (`backend/app.py`, `backend/seed_demo.py`):**
+  - Resolved root cause of 503 `"Premium subscription is not available for purchase"`: database instances missing `subscription_premium_monthly` or `SubscriptionPlan` now auto-seed baseline plans and digital products automatically upon startup or request.
+  - Implemented `ensure_default_seed_data(db)` in `app.py` and invoked on startup, demo seeding, and subscription checkout.
+  - Added support for both **Monthly** (SGD $9.90 / 30 days) and **Annual** (SGD $95.00 / 365 days, Save 20%) billing cycles.
+  - Added past payment receipts and invoice tracking (`REC-XXXXXX`) to `/api/subscription`.
+- [x] **Subscription Paywall & Management Revamp (`frontend/src/pages/SubscriptionPage.jsx`):**
+  - Interactive Monthly vs Annual billing toggle with a dynamic 20% savings badge.
+  - Side-by-side Plan Value Matrix (Healthy360 Core vs Healthy360 Plus) comparing daily pacing, workout generators, meal plans, What-If explorer, and library access.
+  - Modern Checkout Drawer/Modal with itemized order summary, payment method selection (Credit/Debit Card with instant demo auto-fill or PayNow 1-click), and PDPA security badges.
+  - Post-purchase celebration modal with instant navigation to unlocked features.
+  - Active subscriber dashboard showing renewal countdown, gentle cancellation confirmation modal, and payment receipts table.
+- [x] **Digital Storefront & Reader Revamp (`frontend/src/pages/StorePage.jsx`):**
+  - Category filter pills (All Items, Meal Plans, Workout Programs, Expert Articles).
+  - Product preview drawer detailing "What’s Included" before purchasing.
+  - Rich interactive reader view for owned purchases: formatted day-by-day recipes for meal plans, week-by-week sessions for workout programs, and structured typography for articles (replacing raw JSON `<pre>` dumps).
+- [x] **Verification:**
+  - Expanded test suite to **45 passing backend tests** (`pytest tests/ -v`).
+  - Production frontend build clean with zero warnings or errors (`npm run build`).
+
 ## Immediate Next Steps
 
-- [x] **1. Real Data Ingestion:** Added `POST /api/import-logs` (JSON array / CSV, idempotent by pseudonym + date, max 500 rows) and an "Import data" flow on `LoggingPage`. Verified with **39 passing backend tests** (incl. CSV import + idempotent re-import + PDPA non-simulated guardrail) and a successful `npm run build`.
-- [x] **2. Visual Verification:** Launched the Vite dev server + Flask backend and drove the live app in headless Chromium — confirmed the 5-tab mobile bar (elevated Check-in), the `/more` hub (7 rows), the typography/alignment changes, and seeded demo data render correctly across the home, login, dashboard, and more pages.
-- [x] **3. Documentation & Verification:** Update test suites, verify 38+ passing backend tests, successful frontend build, and document ahead of **Submission 3 (12 Dec 2026)** and **Submission 4 (19 Dec 2026)**.
-- [x] **4. HomePage Enhancement:** Added rich hero, how-it-works flow, feature cards with icons, trust signals, and conversion CTA — all responsive, no avoid-list patterns. Frontend build verified.
-- [x] **5. In-App Purchase Flow:** StorePage with catalog, purchase flow, and purchase history integrated with premium gating. Verified with **41 backend tests** and successful frontend build; live purchase flow exercised end-to-end against MySQL with real HTTP calls.
-- [x] **6. Subscription Purchase-First Flow:** Users must now purchase the `subscription_premium_monthly` product via `/api/subscription` before being promoted to premium role. Backend tests (27 passing) and frontend build verified.
+- [x] **1. Real Data Ingestion:** Added `POST /api/import-logs` (JSON array / CSV, idempotent by pseudonym + date, max 500 rows) and an "Import data" flow on `LoggingPage`. Verified with **39 passing backend tests** and a successful `npm run build`.
+- [x] **2. Visual Verification:** Launched the Vite dev server + Flask backend and confirmed 5-tab mobile bar, `/more` hub, typography, and seeded demo data render correctly.
+- [x] **3. Documentation & Verification:** Updated test suites, verified 45 passing backend tests and clean frontend build ahead of **Submission 3 (12 Dec 2026)** and **Submission 4 (19 Dec 2026)**.
+- [x] **4. HomePage Enhancement:** Added rich hero, how-it-works flow, feature cards with icons, trust signals, conversion CTA, and public pricing comparison.
+- [x] **5. In-App Purchase Flow:** StorePage with catalog, purchase flow, and purchase history integrated with premium gating.
+- [x] **6. Subscription Purchase-First Flow:** Users must purchase the `subscription_premium_monthly` product via `/api/subscription` before promotion to premium.
+- [x] **7. User Story Gap Remediation:** Added public plans, PDPA privacy page, admin suspension & feedback moderation, business event attendees, and business profile management.
+- [x] **8. Purchase Experience Revamp & Auto-Seeding:** Eliminated 503 error via self-healing product provisioning, added annual plan option, modern checkout modal, celebration receipts, and rich plan reader view.
+- [x] **9. Personalized Pre-Signup Onboarding Questionnaire & ML Plan Generation:** Interactive 5-step questionnaire (objectives, health goals, motivation, biometrics, 1-to-5 ratings), animated model simulation screen, real XGBoost + TreeSHAP ML plan generation, and Core/Plus unlock gates.
+
+---
+
+## Phase 13: Personalized Pre-Signup Onboarding Questionnaire & ML Plan Generation *(Completed)*
+
+Revamp the entire onboarding funnel into a high-converting, personalized assessment questionnaire executed **before signup** to entice users, backed by actual machine learning model execution:
+
+- [x] **Public ML Model Assessment Endpoint (`backend/app.py`):**
+  - Added `POST /api/onboarding/assess` (public, no auth required).
+  - Takes user objectives, goals, motivation, biometrics, and 1-to-5 state ratings.
+  - Dynamically computes derived fatigue from energy, stress, and recovery ratings.
+  - Invokes `RecommendationService.recommend()` to run real **XGBoost classifier**, **TreeSHAP feature attributions**, and **Counterfactual recourse simulation**.
+  - Generates a customized 7-day adaptive roadmap tailored to the user's predicted activity tier.
+  - Updated `POST /api/onboarding` to persist goals and workout preferences into `UserPreference` and `FitnessGoal`.
+- [x] **Interactive 5-Step Questionnaire Funnel (`frontend/src/pages/OnboardingPage.jsx`):**
+  - **Step 1 (Objectives):** What are you trying to achieve? (Sustainable energy, workout pacing, sleep recovery, habit consistency, stress management).
+  - **Step 2 (Goals):** Specific targets for daily steps (6k-12k), sleep (6.5h-8.5h), movement styles, and available minutes.
+  - **Step 3 (Motivation):** "Why is this important to you right now?" with deep psychological drivers and optional custom focus.
+  - **Step 4 (Biometric Baseline):** Age bracket, activity level, sleep hours, resting heart rate, and daily step sliders.
+  - **Step 5 (1-to-5 Ratings):** Interactive rating buttons for daily energy, work stress, habit consistency, and physical recovery.
+- [x] **Simulated "Generating Personalized Plan" State:**
+  - Dynamic progress bar (0% to 100%) with real-time phase tickers (XGBoost calibration -> TreeSHAP impact calculation -> Counterfactual recourse -> Protocol synthesis).
+- [x] **Personalized Blueprint & Unlock Gates:**
+  - Displays calibrated tier badge, plain-English explanation, visual TreeSHAP impact attribution bars, key What-If habit lever, and 7-day progression roadmap.
+  - **Unlock Gate for Unregistered Users:** Choice between **"Register Free to Unlock Core Protocol"** and **"Purchase Plus (SGD $9.90/mo or $95/yr) to Unlock Full Protocol"** with unified checkout.
+  - Auto-commit pending onboarding questionnaire baseline upon signup in [frontend/src/pages/RegisterPage.jsx](file:///e:/UNI/csit321/Healthy365/frontend/src/pages/RegisterPage.jsx).
+- [x] **Verification:**
+  - Added unit test `test_onboarding_assessment_uses_ml_model_and_persists_goals` in `backend/tests/test_account_storage.py`.
+  - All **46 backend unit tests pass** (`pytest tests/ -v`).
+  - Production frontend build clean with zero warnings or errors (`npm run build`).
+
+---
+
+## Phase 14: Explore Marketplace Revamp & Live Reservation Cancellation *(Completed)*
+
+Comprehensive overhaul of the Discover / Marketplace explore page (`/marketplace`) with live reservation state synchronization, 1-click booking cancellation, capacity tracking, and multi-category exploration:
+
+- [x] **Backend Reservation State & Cancellation (`backend/app.py`):**
+  - Updated `GET /api/marketplace`: Recognizes optional `Bearer` tokens to inject `is_reserved`, `spots_left`, `registered_count`, and `is_full` flags directly into the response payload.
+  - Added `POST /api/marketplace/<resource>/<int:item_id>/cancel` and `DELETE /api/marketplace/<resource>/<int:item_id>/reserve` for instant cancellation of event registrations (`EventRegistration`) and service bookings (`ServiceReservation`).
+- [x] **Frontend Explore Revamp (`frontend/src/pages/MarketplacePage.jsx`):**
+  - **Live Reactive Updates**: Clicking **Reserve Spot** immediately updates state to `✓ RESERVED` with decremented capacity and gives instant visual feedback; clicking **Cancel Booking** frees the reservation immediately and increments spots.
+  - **Category Filter Tabs**: *All Offerings*, *📅 Events & Workshops*, *🏋️ Services & Training*, *🎟️ My Bookings* (filtered view of confirmed spots), *📢 Community Feed*, and *🏆 Step Challenges*.
+  - **Real-Time Search Bar**: Instant filtering by event title, host studio, description, or venue.
+  - **Visual Capacity Badges**: Real-time spots remaining counters (`X spots left of Y`) with automatic `Sold Out` handling when capacity is reached.
+  - **Event Change Notices**: High-priority alert banner notifying registered members of any reschedule or venue changes.
+- [x] **Verification:**
+  - Extended `test_business_profile_and_event_registrations` in `backend/tests/test_account_storage.py` to verify booking, live capacity depletion, cancellation, and capacity restoration.
+  - All **47 backend unit tests pass** (`pytest tests/ -v`).
+  - Production frontend build clean with zero warnings or errors (`npm run build`).

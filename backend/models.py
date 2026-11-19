@@ -146,6 +146,7 @@ class EventRegistration(Base):
     reg_id = Column(Integer, primary_key=True, autoincrement=True)
     event_id = Column(Integer, ForeignKey('business_events.event_id', ondelete='CASCADE'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    registered_at = Column(DateTime, server_default=func.now())
 
 
 class ServiceReservation(Base):
@@ -203,6 +204,8 @@ class UserSubscription(Base):
     start_date = Column(Date, nullable=False)
     renewal_date = Column(Date, nullable=False)
     cancelled_at = Column(DateTime)
+
+    plan = relationship('SubscriptionPlan')
 
 
 class GeneratedPlan(Base):
@@ -316,3 +319,30 @@ class Purchase(Base):
     purchased_at = Column(DateTime(timezone=True), server_default=func.now())
 
     product = relationship('Product')
+
+
+class SystemAuditLog(Base):
+    __tablename__ = 'system_audit_logs'
+
+    audit_id = Column(Integer, primary_key=True, autoincrement=True)
+    actor_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'))
+    log_level = Column(String(10), nullable=False, default='INFO')
+    event_type = Column(String(30), nullable=False)
+    endpoint = Column(String(150))
+    latency_ms = Column(Integer)
+    message = Column(String(500), nullable=False)
+    metadata_json = Column(JSON)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class FairnessAudit(Base):
+    __tablename__ = 'fairness_audits'
+
+    fairness_id = Column(Integer, primary_key=True, autoincrement=True)
+    run_by_admin_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'))
+    subgroup_dimension = Column(String(30), nullable=False)
+    demographic_parity_diff = Column(Numeric(5, 4), nullable=False)
+    disparate_impact_ratio = Column(Numeric(5, 4), nullable=False)
+    subgroup_metrics_json = Column(JSON, nullable=False)
+    sample_size = Column(Integer, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())

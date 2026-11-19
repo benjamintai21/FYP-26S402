@@ -108,6 +108,12 @@ export function AppProvider({ children }) {
     const result = await syncSampleWearable();
     const trends = await getTrends();
     setHistory(trends.logs || []);
+    try {
+      const rec = await getLatestRecommendation();
+      setLatest(rec.recommendation);
+    } catch {
+      // ignore if unavailable
+    }
     return result;
   };
 

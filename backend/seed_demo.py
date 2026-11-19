@@ -411,6 +411,10 @@ def main():
     db = SessionLocal()
     created_users = []
     try:
+        from app import ensure_default_seed_data
+        print("Ensuring baseline subscription plans and products exist ...")
+        ensure_default_seed_data(db)
+
         print("Seeding Healthy360 demo data ...")
         print("[members]")
         for m in MEMBERS:
